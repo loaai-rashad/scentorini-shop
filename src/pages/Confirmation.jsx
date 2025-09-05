@@ -26,7 +26,7 @@ export default function Confirmation() {
       <h2 className="text-3xl font-bold mb-4">
         Thank you for your order, {form.name}!
       </h2>
-      <p className="mb-2">Total Paid: ${total.toFixed(2)}</p>
+      <p className="mb-2">Total Paid: EGP{total.toFixed(2)}</p>
       <p className="mb-2">
         Delivery to: {form.address}, {form.governorate}
       </p>

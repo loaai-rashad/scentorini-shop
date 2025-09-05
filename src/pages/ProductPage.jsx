@@ -48,7 +48,7 @@ export default function ProductPage() {
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
-        <p className="text-2xl font-semibold text-stone-900">${product.price.toFixed(2)}</p>
+        <p className="text-2xl font-semibold text-stone-900">EGP{product.price.toFixed(2)}</p>
         <p className="text-stone-700">{product.description}</p>
 
         <button
