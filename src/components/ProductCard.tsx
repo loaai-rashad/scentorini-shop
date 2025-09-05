@@ -34,7 +34,7 @@ export default function ProductCard({
 
           <div>
             <span className="text-xl font-semibold text-stone-900">
-              ${price.toFixed(2)}
+              EGP{price.toFixed(2)}
             </span>
           </div>
         </div>
