@@ -1,23 +1,23 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.node.json"
-    }
-  ],
   "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "ESNext"],
+    "allowJs": true,                 // allows JS files in src
+    "checkJs": false,                // optional, skip JS type checking
+    "jsx": "react-jsx",              // React 17+ JSX transform
+    "noEmit": false,                 // enable emitting files
+    "outDir": "dist",                // compiled files go here
+    "rootDir": "src",                // source folder
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
-    "allowJs": true,
-    "checkJs": false,
-    "jsx": "react-jsx",
-    "noImplicitAny": false,
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
