@@ -3,8 +3,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const images = [
-  "/images/slide1.jpeg",
+
   "/images/slide2.jpeg",
+  "/images/slide3.jpeg",
+  "/images/slide4.jpeg",
+  "/images/slide5.jpeg",
+
 ];
 
 export default function Carousel() {
