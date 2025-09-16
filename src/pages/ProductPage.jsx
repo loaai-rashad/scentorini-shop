@@ -48,15 +48,26 @@ export default function ProductPage() {
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
-        <p className="text-2xl font-semibold text-stone-900">EGP{product.price.toFixed(2)}</p>
+        <p className="text-2xl font-semibold text-stone-900">
+          EGP{product.price.toFixed(2)}
+        </p>
         <p className="text-stone-700">{product.description}</p>
 
-        <button
-          className="mt-4 bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
-          onClick={() => addToCart(product)}
-        >
-          Add to Cart
-        </button>
+        {product.stock > 0 ? (
+          <button
+            className="mt-4 bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+            onClick={() => addToCart(product)}
+          >
+            Add to Cart
+          </button>
+        ) : (
+          <button
+            className="mt-4 bg-gray-400 text-white py-2 px-4 rounded cursor-not-allowed"
+            disabled
+          >
+            Out of Stock
+          </button>
+        )}
       </div>
     </div>
   );
