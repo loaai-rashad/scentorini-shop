@@ -83,10 +83,10 @@ export default function ProductPage() {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-4 right-4 bg-[#1C3C85] text-white px-4 py-2 rounded shadow-lg z-50 animate-bounce">
-          Item added to cart!
-        </div>
-      )}
+  <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-6 py-3 rounded shadow-lg z-50 animate-slide-down">
+    Item added to cart!
+  </div>
+)}
     </div>
   );
 }
