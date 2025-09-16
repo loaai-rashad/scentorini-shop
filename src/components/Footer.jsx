@@ -1,4 +1,5 @@
 import React from "react";
+import { Phone, Instagram } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -28,14 +29,18 @@ export default function Footer() {
 
         {/* Contact Info */}
         <div className="text-sm flex flex-col items-center md:items-end gap-1">
-          <span>📞 +20 1553883588</span>
+          <div className="flex items-center gap-1">
+            <Phone className="w-4 h-4" />
+            <span>+20 1553883588</span>
+          </div>
           <a
             href="https://www.instagram.com/scentorini.eg?utm_source=qr&igsh=OWQ4MTF3N2hqNzN5"
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:underline"
+            className="flex items-center gap-1 hover:underline"
           >
-            📸 scentorini.eg
+            <Instagram className="w-4 h-4" />
+            scentorini.eg
           </a>
         </div>
       </div>

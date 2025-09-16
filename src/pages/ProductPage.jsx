@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
+import LoadingScreen from "../components/LoadingScreen"; // ✅ Import it
 
 export default function ProductPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -19,7 +21,7 @@ export default function ProductPage() {
         if (docSnap.exists()) {
           setProduct({ id: docSnap.id, ...docSnap.data() });
         } else {
-          setProduct(null); // Product not found
+          setProduct(null);
         }
       } catch (error) {
         console.error("Error fetching product:", error);
@@ -32,11 +34,19 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  if (loading) return <div className="min-h-screen p-8">Loading...</div>;
+  const handleAddToCart = (product) => {
+    addToCart(product);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+
+  if (loading) return <LoadingScreen />;
   if (!product) return <div className="min-h-screen p-8">Product not found</div>;
 
   return (
-    <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8">
+    <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative">
+      {/* Product Image */}
       <div className="flex-shrink-0 w-full md:w-1/3">
         <img
           src={product.image || "/perfume.jpeg"}
@@ -45,6 +55,7 @@ export default function ProductPage() {
         />
       </div>
 
+      {/* Product Details */}
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
@@ -56,7 +67,7 @@ export default function ProductPage() {
         {product.stock > 0 ? (
           <button
             className="mt-4 bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
-            onClick={() => addToCart(product)}
+            onClick={() => handleAddToCart(product)}
           >
             Add to Cart
           </button>
@@ -69,6 +80,13 @@ export default function ProductPage() {
           </button>
         )}
       </div>
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 right-4 bg-[#1C3C85] text-white px-4 py-2 rounded shadow-lg z-50 animate-bounce">
+          Item added to cart!
+        </div>
+      )}
     </div>
   );
 }

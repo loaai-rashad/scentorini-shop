@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import ProductCard from "./ProductCard";
+import LoadingScreen from "./LoadingScreen"; // ✅ import your loader
 
 export default function ProductsList() {
   const [products, setProducts] = useState([]);
@@ -15,19 +16,20 @@ export default function ProductsList() {
         const productsArray = querySnapshot.docs.map(doc => ({
           id: doc.id,
           rating: 0, // default if not in Firestore
-          ...doc.data()
+          ...doc.data(),
         }));
         setProducts(productsArray);
-        setLoading(false);
       } catch (error) {
         console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchProducts();
   }, []);
 
-  if (loading) return <p>Loading products...</p>;
+  if (loading) return <LoadingScreen />; // ✅ use the loading component
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
