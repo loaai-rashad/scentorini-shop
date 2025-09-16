@@ -1,10 +1,9 @@
-
 import React from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Cart() {
-  const { cart, removeFromCart, clearCart } = useCart();
+  const { cart, removeFromCart, clearCart, incrementQuantity, decrementQuantity } = useCart();
   const navigate = useNavigate();
 
   if (cart.length === 0)
@@ -27,7 +26,21 @@ export default function Cart() {
           >
             <div>
               <h3 className="font-semibold">{item.title}</h3>
-              <p className="text-gray-500">Qty: {item.quantity}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => decrementQuantity(item.id)}
+                >
+                  -
+                </button>
+                <span>{item.quantity}</span>
+                <button
+                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => incrementQuantity(item.id)}
+                >
+                  +
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -43,14 +56,11 @@ export default function Cart() {
       </ul>
 
       <div className="mt-6 flex flex-col gap-2">
-  <span className="text-xl font-bold">Total: EGP{total.toFixed(2)}</span>
-  <div className="text-gray-600 text-sm">
-    * Shipping: 65 EGP all over Egypt, but free in Ismailia.
-  </div>
-  <div className="text-red-600 font-semibold text-sm">
-     Payment: Cash on delivery.
-  </div>
-</div>
+        <span className="text-xl font-bold">Total: ${total.toFixed(2)}</span>
+        <div className="text-gray-600 text-sm">
+          * Shipping: 65 EGP all over Egypt, but free in Ismailia.
+        </div>
+      </div>
 
       <div className="mt-4 flex gap-3">
         <button

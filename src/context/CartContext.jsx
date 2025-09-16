@@ -3,13 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  // 1️⃣ Load cart from localStorage on app start
   const [cart, setCart] = useState(() => {
     const storedCart = localStorage.getItem("cart");
     return storedCart ? JSON.parse(storedCart) : [];
   });
 
-  // 2️⃣ Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
@@ -19,14 +17,16 @@ export function CartProvider({ children }) {
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
       if (existingItem) {
-        // If product already in cart → increase quantity
-        return prevCart.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+        // If quantity < stock, increment
+        if (existingItem.quantity < product.stock) {
+          return prevCart.map((item) =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          );
+        }
+        return prevCart; // Don't exceed stock
       }
-      // Else add new product with quantity 1
       return [...prevCart, { ...product, quantity: 1 }];
     });
   };
@@ -36,16 +36,37 @@ export function CartProvider({ children }) {
     setCart((prevCart) => prevCart.filter((item) => item.id !== id));
   };
 
-  // Update quantity
+  // Update quantity directly (respects stock)
   const updateQuantity = (id, quantity) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.id === id ? { ...item, quantity } : item
+        item.id === id
+          ? { ...item, quantity: Math.min(quantity, item.stock) }
+          : item
       )
     );
   };
 
-  // ✅ Clear all items in cart
+  // Increment quantity with stock check
+  const incrementQuantity = (id) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === id
+          ? { ...item, quantity: Math.min(item.quantity + 1, item.stock) }
+          : item
+      )
+    );
+  };
+
+  // Decrement quantity (min 1)
+  const decrementQuantity = (id) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === id ? { ...item, quantity: Math.max(item.quantity - 1, 1) } : item
+      )
+    );
+  };
+
   const clearCart = () => {
     setCart([]);
     localStorage.removeItem("cart");
@@ -58,7 +79,9 @@ export function CartProvider({ children }) {
         addToCart,
         removeFromCart,
         updateQuantity,
-        clearCart, // ✅ make available
+        incrementQuantity,
+        decrementQuantity,
+        clearCart,
       }}
     >
       {children}
@@ -66,7 +89,6 @@ export function CartProvider({ children }) {
   );
 }
 
-// Custom hook to use the cart context
 export function useCart() {
   return useContext(CartContext);
 }
