@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react";
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openDropdown, setOpenDropdown] = useState(null); // track which order dropdown is open
+  const [openDropdown, setOpenDropdown] = useState(null);
   const navigate = useNavigate();
 
   const statuses = ["New", "Packed", "Shipped", "Delivered"];
@@ -34,6 +34,7 @@ export default function AdminDashboard() {
         const snapshot = await getDocs(q);
         const ordersData = snapshot.docs.map((doc) => ({
           id: doc.id,
+          status: "New", // default if missing
           ...doc.data(),
         }));
         setOrders(ordersData);
@@ -58,14 +59,23 @@ export default function AdminDashboard() {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
-      setOpenDropdown(null); // close dropdown after selection
+      setOpenDropdown(null);
     } catch (error) {
       console.error("Error updating status:", error);
       alert("Failed to update status.");
     }
   };
 
+  // Quick stats
+  const totalOrders = orders.length;
   const totalSubtotal = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+  const statusCounts = orders.reduce(
+    (acc, order) => {
+      acc[order.status || "New"] = (acc[order.status || "New"] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
   if (loading) return <div className="p-8 text-center">Loading orders...</div>;
   if (orders.length === 0)
@@ -94,6 +104,31 @@ export default function AdminDashboard() {
         </button>
       </div>
 
+      {/* Quick Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-gray-500 text-sm">Total Orders</h2>
+          <p className="text-2xl font-bold">{totalOrders}</p>
+        </div>
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-gray-500 text-sm">Total Subtotal</h2>
+          <p className="text-2xl font-bold">${totalSubtotal.toFixed(2)}</p>
+        </div>
+        {statuses.map((status) => {
+          const [bg, text] = statusColors[status].split(" ").map(c => c.includes("bg-") ? c : c);
+          return (
+            <div
+              key={status}
+              className={`p-4 shadow rounded ${statusColors[status]}`}
+            >
+              <h2 className="text-gray-500 text-sm">{status} Orders</h2>
+              <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Orders Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full border border-gray-200">
           <thead className="bg-gray-100">
@@ -111,7 +146,6 @@ export default function AdminDashboard() {
           <tbody>
             {orders.map((order) => {
               const currentStatus = order.status || "New";
-
               return (
                 <tr key={order.id} className="hover:bg-gray-50">
                   <td className="p-3 border-b">{order.id}</td>
@@ -136,8 +170,7 @@ export default function AdminDashboard() {
                       }
                       className={`flex items-center justify-between w-32 px-3 py-1 rounded font-medium text-sm ${statusColors[currentStatus]} focus:outline-none`}
                     >
-                      {currentStatus}
-                      <ChevronDown className="ml-2 h-4 w-4" />
+                      {currentStatus} <ChevronDown className="ml-2 h-4 w-4" />
                     </button>
 
                     {openDropdown === order.id && (
