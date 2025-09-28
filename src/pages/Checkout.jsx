@@ -9,6 +9,9 @@ import {
   getDoc,
   updateDoc,
   increment,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -23,6 +26,9 @@ export default function Checkout() {
     address: "",
   });
   const [loading, setLoading] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState("");
 
   const governorates = [
     "Alexandria","Assiut","Aswan","Beheira","Bani Suef","Cairo",
@@ -35,6 +41,43 @@ export default function Checkout() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  // Promo code handler
+  const handleApplyPromo = async () => {
+    setPromoError("");
+    if (!promoInput.trim()) return;
+
+    try {
+      const promoRef = collection(db, "promocodes");
+      const q = query(promoRef, where("code", "==", promoInput.trim()));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        setPromoError("Promo code not found.");
+        setAppliedPromo(null);
+        return;
+      }
+
+      const promoDoc = snapshot.docs[0].data();
+      if (!promoDoc.active) {
+        setPromoError("Promo code is inactive.");
+        setAppliedPromo(null);
+        return;
+      }
+
+      setAppliedPromo({ code: promoDoc.code, discount: promoDoc.discount });
+      setPromoError("");
+    } catch (error) {
+      console.error("Error applying promo:", error);
+      setPromoError("Failed to apply promo code.");
+    }
+  };
+
+  // Totals calculation
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shippingCost = form.governorate === "Ismailia" ? 0 : 65;
+  const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
+  const total = subtotal - discountAmount + shippingCost;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,7 +95,7 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 🔎 Step 1: Validate stock for each product
+      // 1️⃣ Validate stock
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
         const productSnap = await getDoc(productRef);
@@ -73,17 +116,13 @@ export default function Checkout() {
         }
       }
 
-      // 🔢 Step 2: Calculate shipping and totals
-      const shippingCost = form.governorate === "Ismailia" ? 0 : 65;
-      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const total = subtotal + shippingCost;
-
+      // 2️⃣ Prepare order data (dashboard-compatible)
       const orderData = {
         customerName: form.name,
         phoneNumber: form.phone,
         governorate: form.governorate,
         address: form.address,
-        items: cart.map((item) => ({
+        items: cart.map(item => ({
           id: item.id,
           title: item.title,
           price: item.price,
@@ -91,24 +130,26 @@ export default function Checkout() {
         })),
         subtotal,
         shipping: shippingCost,
+        discount: discountAmount,
         total,
-        createdAt: serverTimestamp(),
+        promoCode: appliedPromo?.code || null,
+        createdAt: serverTimestamp(), // 🔹 required for Admin Dashboard
+        status: "New",
       };
 
-      // 🔽 Step 3: Create order in Firestore
+      // 3️⃣ Save order
       await addDoc(collection(db, "orders"), orderData);
 
-      // 🔽 Step 4: Decrease stock in Firestore
+      // 4️⃣ Reduce stock
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
-        await updateDoc(productRef, {
-          stock: increment(-item.quantity),
-        });
+        await updateDoc(productRef, { stock: increment(-item.quantity) });
       }
 
-      // 🧹 Step 5: Clear cart and navigate
+      // 5️⃣ Clear cart & navigate
       clearCart();
-      navigate("/confirmation", { state: { form, subtotal, shipping: shippingCost, total } });
+      navigate("/confirmation", { state: { ...orderData, form } });
+
     } catch (error) {
       console.error("Error during checkout:", error);
       alert("There was an error processing your order. Please try again.");
@@ -160,10 +201,8 @@ export default function Checkout() {
           className="w-full border p-2 rounded"
         >
           <option value="">Select Governorate</option>
-          {governorates.map((gov) => (
-            <option key={gov} value={gov}>
-              {gov}
-            </option>
+          {governorates.map(gov => (
+            <option key={gov} value={gov}>{gov}</option>
           ))}
         </select>
         <p className="text-sm text-gray-500 mt-1">
@@ -176,6 +215,38 @@ export default function Checkout() {
           onChange={handleChange}
           className="w-full border p-2 rounded"
         />
+
+        {/* Promo code */}
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            placeholder="Enter promo code"
+            value={promoInput}
+            onChange={e => setPromoInput(e.target.value)}
+            className="flex-1 border p-2 rounded"
+          />
+          <button
+            type="button"
+            onClick={handleApplyPromo}
+            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+          >
+            Apply
+          </button>
+        </div>
+        {appliedPromo && (
+          <p className="text-green-700 text-sm">
+            Applied: {appliedPromo.code} ({appliedPromo.discount}% off)
+          </p>
+        )}
+        {promoError && <p className="text-red-600 text-sm">{promoError}</p>}
+
+        {/* Dynamic totals */}
+        <div className="bg-gray-100 p-4 rounded space-y-1 mt-2">
+          <p>Subtotal: {subtotal.toFixed(2)} EGP</p>
+          {appliedPromo && <p>Discount: -{discountAmount.toFixed(2)} EGP</p>}
+          <p>Shipping: {shippingCost.toFixed(2)} EGP</p>
+          <p className="font-bold">Total: {total.toFixed(2)} EGP</p>
+        </div>
 
         <button
           type="submit"

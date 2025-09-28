@@ -19,21 +19,33 @@ export default function Confirmation() {
     );
   }
 
-  const { form, total } = state;
+  const { form, subtotal, shipping, discount, total, promoCode } = state;
 
   return (
     <div className="p-8 max-w-3xl mx-auto text-center">
       <h2 className="text-3xl font-bold mb-4">
         Thank you for your order, {form.name}!
       </h2>
-      <p className="mb-2">Total Paid: EGP{total.toFixed(2)}</p>
-      <p className="mb-2">
-        Delivery to: {form.address}, {form.governorate}
-      </p>
-      <p className="mb-4">We will contact you at {form.phone} if needed.</p>
+
+      <div className="bg-gray-100 p-6 rounded-lg inline-block text-left">
+        <p className="mb-1">Subtotal: EGP {subtotal.toFixed(2)}</p>
+        {promoCode && (
+          <>
+            <p className="mb-1 text-green-700">Promo ({promoCode}) applied: -EGP {discount.toFixed(2)}</p>
+          </>
+        )}
+        <p className="mb-1">Shipping: EGP {shipping.toFixed(2)}</p>
+        <p className="font-bold text-lg mt-2">Total Paid: EGP {total.toFixed(2)}</p>
+      </div>
+
+      <div className="mt-4">
+        <p>Delivery to: {form.address}, {form.governorate}</p>
+        <p>We will contact you at {form.phone} if needed.</p>
+      </div>
+
       <Link
         to="/"
-        className="bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+        className="mt-6 inline-block bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
       >
         Back to Home
       </Link>
