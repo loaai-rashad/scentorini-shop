@@ -9,7 +9,9 @@ import {
   doc,
   updateDoc,
   addDoc,
+  deleteDoc, // ← Add this
 } from "firebase/firestore";
+
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
@@ -233,6 +235,7 @@ export default function AdminDashboard() {
         <th className="p-3 text-left border-b">Total</th>
         <th className="p-3 text-left border-b">Status</th>
         <th className="p-3 text-left border-b">Promo Code</th>
+        <th className="p-3 text-left border-b">Actions</th> {/* New column */}
       </tr>
     </thead>
     <tbody>
@@ -279,15 +282,34 @@ export default function AdminDashboard() {
               )}
             </td>
 
-            {/* Promo Code (plain text) */}
+            {/* Promo Code */}
             <td className="p-3 border-b">{order.promoCode || "None"}</td>
+
+            {/* Delete Button */}
+            <td className="p-3 border-b">
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to delete this order?")) {
+                    try {
+                      await deleteDoc(doc(db, "orders", order.id));
+                      setOrders(prev => prev.filter(o => o.id !== order.id));
+                    } catch (error) {
+                      console.error("Failed to delete order:", error);
+                      alert("Failed to delete order. Please try again.");
+                    }
+                  }
+                }}
+                className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </td>
           </tr>
         );
       })}
     </tbody>
   </table>
 </div>
-
 
       <style>{`
         @keyframes slideDown {
