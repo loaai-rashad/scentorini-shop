@@ -9,14 +9,14 @@ import {
   getDoc,
   updateDoc,
   increment,
-  getDocs,
   query,
   where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function Checkout() {
-  const { cart, clearCart } = useCart();
+  const { cart = [], clearCart } = useCart(); // fallback if cart undefined
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -42,7 +42,7 @@ export default function Checkout() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Promo code handler
+  // Apply promo code
   const handleApplyPromo = async () => {
     setPromoError("");
     if (!promoInput.trim()) return;
@@ -66,14 +66,13 @@ export default function Checkout() {
       }
 
       setAppliedPromo({ code: promoDoc.code, discount: promoDoc.discount });
-      setPromoError("");
     } catch (error) {
       console.error("Error applying promo:", error);
       setPromoError("Failed to apply promo code.");
     }
   };
 
-  // Totals calculation
+  // Totals
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = form.governorate === "Ismailia" ? 0 : 65;
   const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
@@ -83,29 +82,22 @@ export default function Checkout() {
     e.preventDefault();
 
     if (!form.name || !form.phone || !form.governorate || !form.address) {
-      alert("Please fill in all fields before confirming.");
-      return;
+      return alert("Please fill in all fields before confirming.");
     }
-
-    if (cart.length === 0) {
-      alert("Your cart is empty.");
-      return;
-    }
+    if (!cart.length) return alert("Your cart is empty.");
 
     setLoading(true);
 
     try {
-      // 1️⃣ Validate stock
+      // Validate stock
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
         const productSnap = await getDoc(productRef);
-
         if (!productSnap.exists()) {
           alert(`Product ${item.title} not found.`);
           setLoading(false);
           return;
         }
-
         const productData = productSnap.data();
         if (productData.stock < item.quantity) {
           alert(
@@ -116,7 +108,7 @@ export default function Checkout() {
         }
       }
 
-      // 2️⃣ Prepare order data (dashboard-compatible)
+      // Prepare order
       const orderData = {
         customerName: form.name,
         phoneNumber: form.phone,
@@ -133,23 +125,22 @@ export default function Checkout() {
         discount: discountAmount,
         total,
         promoCode: appliedPromo?.code || null,
-        createdAt: serverTimestamp(), // 🔹 required for Admin Dashboard
+        createdAt: serverTimestamp(),
         status: "New",
       };
 
-      // 3️⃣ Save order
+      // Save order
       await addDoc(collection(db, "orders"), orderData);
 
-      // 4️⃣ Reduce stock
+      // Reduce stock
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
         await updateDoc(productRef, { stock: increment(-item.quantity) });
       }
 
-      // 5️⃣ Clear cart & navigate
+      // Clear cart and navigate
       clearCart();
       navigate("/confirmation", { state: { ...orderData, form } });
-
     } catch (error) {
       console.error("Error during checkout:", error);
       alert("There was an error processing your order. Please try again.");
@@ -158,7 +149,7 @@ export default function Checkout() {
     }
   };
 
-  if (cart.length === 0) {
+  if (!cart.length) {
     return (
       <div className="p-8 text-center text-gray-500">
         Your cart is empty.
@@ -176,8 +167,8 @@ export default function Checkout() {
   return (
     <div className="p-8 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold mb-6">Confirm Your Order</h2>
-
       <form onSubmit={handleSubmit} className="space-y-4">
+
         <input
           type="text"
           name="name"
@@ -194,6 +185,8 @@ export default function Checkout() {
           onChange={handleChange}
           className="w-full border p-2 rounded"
         />
+
+        {/* Governorate dropdown restored */}
         <select
           name="governorate"
           value={form.governorate}
@@ -208,6 +201,7 @@ export default function Checkout() {
         <p className="text-sm text-gray-500 mt-1">
           Shipping is 65 EGP all over Egypt, free in Ismailia.
         </p>
+
         <textarea
           name="address"
           placeholder="Detailed Address"
@@ -216,7 +210,7 @@ export default function Checkout() {
           className="w-full border p-2 rounded"
         />
 
-        {/* Promo code */}
+        {/* Promo */}
         <div className="flex gap-2 items-center">
           <input
             type="text"
@@ -233,14 +227,11 @@ export default function Checkout() {
             Apply
           </button>
         </div>
-        {appliedPromo && (
-          <p className="text-green-700 text-sm">
-            Applied: {appliedPromo.code} ({appliedPromo.discount}% off)
-          </p>
-        )}
+        {appliedPromo && <p className="text-green-700 text-sm">
+          Applied: {appliedPromo.code} ({appliedPromo.discount}% off)
+        </p>}
         {promoError && <p className="text-red-600 text-sm">{promoError}</p>}
 
-        {/* Dynamic totals */}
         <div className="bg-gray-100 p-4 rounded space-y-1 mt-2">
           <p>Subtotal: {subtotal.toFixed(2)} EGP</p>
           {appliedPromo && <p>Discount: -{discountAmount.toFixed(2)} EGP</p>}
@@ -250,10 +241,10 @@ export default function Checkout() {
 
         <button
           type="submit"
+          disabled={loading}
           className={`w-full bg-[#1C3C85] text-white py-2 rounded hover:bg-blue-700 transition ${
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
-          disabled={loading}
         >
           {loading ? "Processing..." : "Confirm Order"}
         </button>
