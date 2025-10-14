@@ -42,7 +42,7 @@ export default function ProductCard({
 
           {stock > 0 ? (
             <div className="flex flex-col items-start gap-1">
-              <span className="text-gray-400 line-through">EGP450</span>
+              
               <span className="text-xl font-semibold text-stone-900">
                 EGP{price.toFixed(2)}
               </span>
