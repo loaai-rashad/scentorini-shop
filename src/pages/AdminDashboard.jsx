@@ -300,12 +300,12 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Product Management */}
-      <div className="p-4 bg-gray-100 rounded shadow">
+            {/* Product Management */}
+            <div className="p-4 bg-gray-100 rounded shadow">
         <h2 className="text-xl font-semibold mb-3">Manage Products</h2>
 
         {/* Add Product */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-8 gap-2 mb-3">
           <input
             type="text"
             placeholder="Title"
@@ -351,9 +351,18 @@ export default function AdminDashboard() {
             }
             className="px-2 py-1 border rounded"
           />
+          <input
+            type="text"
+            placeholder="Short Description"
+            value={newProduct.description}
+            onChange={e =>
+              setNewProduct(prev => ({ ...prev, description: e.target.value }))
+            }
+            className="px-2 py-1 border rounded"
+          />
           <button
             onClick={handleAddProduct}
-            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 col-span-1"
           >
             Add
           </button>
@@ -369,6 +378,7 @@ export default function AdminDashboard() {
                 <th className="p-2 border-b">Subtitle</th>
                 <th className="p-2 border-b">Price</th>
                 <th className="p-2 border-b">Stock</th>
+                <th className="p-2 border-b">Description</th>
                 <th className="p-2 border-b">Actions</th>
               </tr>
             </thead>
@@ -409,7 +419,7 @@ export default function AdminDashboard() {
                       onChange={e =>
                         handleProductChange(p.id, "price", e.target.value)
                       }
-                      className="w-20 border rounded px-2 py-1"
+                      className="w-24 border rounded px-2 py-1"
                     />
                   </td>
                   <td className="p-2 border-b">
@@ -422,6 +432,18 @@ export default function AdminDashboard() {
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>
+
+                  {/* Description column */}
+                  <td className="p-2 border-b">
+                    <textarea
+                      value={p.description || ""}
+                      onChange={e =>
+                        handleProductChange(p.id, "description", e.target.value)
+                      }
+                      className="w-full border rounded px-2 py-1 h-20"
+                    />
+                  </td>
+
                   <td className="p-2 border-b flex gap-2">
                     <button
                       onClick={() => handleSaveProduct(p.id)}
@@ -442,6 +464,7 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
