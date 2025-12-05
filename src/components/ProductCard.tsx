@@ -7,7 +7,7 @@ export default function ProductCard({
   title,
   subtitle,
   price,
-  stock = 0, // 👈 new prop for stock
+  stock = 0, 
   className = "",
 }) {
   return (

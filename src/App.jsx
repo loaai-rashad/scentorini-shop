@@ -11,7 +11,7 @@ import Confirmation from "./pages/Confirmation";
 import Footer from "./components/Footer";
 import ProductsList from "./components/ProductsList"; 
 import ScrollToTop from "./components/ScrollToTop";
-
+import Home from "./pages/Home"; 
 
 import About from "./pages/About";
 

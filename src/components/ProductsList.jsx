@@ -2,11 +2,18 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
-import ProductCard from "./ProductCard";
-import LoadingScreen from "./LoadingScreen"; // ✅ import your loader
+// ProductCard is imported here and used inside the standalone section
+import ProductCard from "./ProductCard"; 
+import LoadingScreen from "./LoadingScreen"; 
+// ProductGroup is the new component handling the titles and 3-column grid
+import ProductGroup from "./ProductGroup"; 
 
 export default function ProductsList() {
-  const [products, setProducts] = useState([]);
+  // State variables for all four distinct product categories
+  const [productsForHim, setProductsForHim] = useState([]);
+  const [productsForHer, setProductsForHer] = useState([]);
+  const [productsForUnisex, setProductsForUnisex] = useState([]);
+  const [productsForTesters, setProductsForTesters] = useState([]); 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,10 +22,32 @@ export default function ProductsList() {
         const querySnapshot = await getDocs(collection(db, "products"));
         const productsArray = querySnapshot.docs.map(doc => ({
           id: doc.id,
-          rating: 0, // default if not in Firestore
+          rating: 0, 
+          // Ensure all product data, including the 'for' field, is spread here
           ...doc.data(),
         }));
-        setProducts(productsArray);
+        
+        // --- Filtering Logic (Exact Match on 'for' field) ---
+        // Note: The logic uses .toLowerCase() === to handle case variations (e.g., Him, him, HIM)
+
+        const himProducts = productsArray.filter(
+             product => product.for && product.for.toLowerCase() === "him"
+        );
+        const herProducts = productsArray.filter(
+             product => product.for && product.for.toLowerCase() === "her"
+        );
+        const unisexProducts = productsArray.filter(
+             product => product.for && product.for.toLowerCase() === "unisex"
+        ); 
+        const testerProducts = productsArray.filter(
+             product => product.for && product.for.toLowerCase() === "tester"
+        ); 
+
+        setProductsForHim(himProducts);
+        setProductsForHer(herProducts);
+        setProductsForUnisex(unisexProducts);
+        setProductsForTesters(testerProducts);
+        
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -29,13 +58,52 @@ export default function ProductsList() {
     fetchProducts();
   }, []);
 
-  if (loading) return <LoadingScreen />; // ✅ use the loading component
+  if (loading) return <LoadingScreen />; 
+  
+  // Find the Hidden Desire product for the standalone card 
+  // We search across all lists to ensure we find it, even if its 'for' field changes.
+  const allProducts = [...productsForHim, ...productsForHer, ...productsForUnisex, ...productsForTesters];
+  const hiddenDesireProduct = allProducts.find(
+    product => product.title && product.title.toLowerCase() === "hidden desire"
+  );
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {products.map(product => (
-        <ProductCard key={product.id} {...product} />
-      ))}
+    <div className="container mx-auto py-10">
+      
+      {/* 1. Scentorini for Him Section */}
+      <ProductGroup 
+        title="Scentorini for Him" 
+        products={productsForHim} 
+      />
+
+      {/* 2. Scentorini for Her Section */}
+      <ProductGroup 
+        title="Scentorini for Her" 
+        products={productsForHer} 
+      />
+      
+      {/* 3. Scentorini Unisex Selection (This includes Hidden Desire) */}
+      <ProductGroup 
+        title="Scentorini Unisex Selection" 
+        products={productsForUnisex} 
+      />
+
+      {/* 4. Scentorini Testers Section */}
+      <ProductGroup 
+        title="Scentorini Testers" 
+        products={productsForTesters} 
+      />
+
+      {/* 5. STANDALONE PRODUCT SECTION (Duplicate Card at the bottom) */}
+      {hiddenDesireProduct && (
+        <section className="mt-16 mb-16 flex justify-center">
+            {/* The wrapper centers the card and limits its width to 1 column */}
+            <div className="w-full md:w-1/2 lg:w-1/3 px-4">
+                <ProductCard {...hiddenDesireProduct} />
+            </div>
+        </section>
+      )}
+      
     </div>
   );
 }
