@@ -94,15 +94,7 @@ export default function ProductsList() {
         products={productsForTesters} 
       />
 
-      {/* 5. STANDALONE PRODUCT SECTION (Duplicate Card at the bottom) */}
-      {hiddenDesireProduct && (
-        <section className="mt-16 mb-16 flex justify-center">
-            {/* The wrapper centers the card and limits its width to 1 column */}
-            <div className="w-full md:w-1/2 lg:w-1/3 px-4">
-                <ProductCard {...hiddenDesireProduct} />
-            </div>
-        </section>
-      )}
+  
       
     </div>
   );
