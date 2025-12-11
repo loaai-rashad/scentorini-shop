@@ -14,9 +14,15 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import emailjs from '@emailjs/browser';
+
+
+const EMAILJS_SERVICE_ID = 'service_gl98ck9';
+const EMAILJS_TEMPLATE_ID = 'template_y2k0ghw';
+const EMAILJS_PUBLIC_KEY = 'jbKrDobPuQ9Eoy-Wl'; 
 
 export default function Checkout() {
-  const { cart = [], clearCart } = useCart(); // fallback if cart undefined
+  const { cart = [], clearCart } = useCart();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -24,11 +30,16 @@ export default function Checkout() {
     phone: "",
     governorate: "",
     address: "",
+    email: "", // Required for EmailJS
   });
   const [loading, setLoading] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState("");
+  
+  const [paymentMethod, setPaymentMethod] = useState("InstaPay");
+  // State to capture the user's mobile number used for their InstaPay transfer
+  const [instapayPhone, setInstapayPhone] = useState(""); 
 
   const governorates = [
     "Alexandria","Assiut","Aswan","Beheira","Bani Suef","Cairo",
@@ -42,7 +53,7 @@ export default function Checkout() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Apply promo code
+  // Apply promo code (Retained)
   const handleApplyPromo = async () => {
     setPromoError("");
     if (!promoInput.trim()) return;
@@ -72,24 +83,30 @@ export default function Checkout() {
     }
   };
 
-  // Totals
+  // Totals calculation (Retained)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingCost = form.governorate === "Ismailia" ? 0 : 65;
+  // Assuming shipping is 65 EGP, or 0 for Ismailia
+  const shippingCost = form.governorate === "Ismailia" ? 0 : 65; 
   const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
-  const total = subtotal - discountAmount + shippingCost;
+  const total = subtotal - discountAmount + shippingCost; 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.name || !form.phone || !form.governorate || !form.address) {
-      return alert("Please fill in all fields before confirming.");
+    if (!form.name || !form.phone || !form.governorate || !form.address || !form.email) {
+      return alert("Please fill in all required fields (including email) before confirming.");
     }
     if (!cart.length) return alert("Your cart is empty.");
+
+    // Validation for InstaPay phone
+    if (paymentMethod === "InstaPay" && !instapayPhone.trim()) {
+      return alert("Please enter the mobile number you used for the InstaPay transfer.");
+    }
 
     setLoading(true);
 
     try {
-      // Validate stock
+      // Validate stock (Existing logic retained)
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
         const productSnap = await getDoc(productRef);
@@ -113,6 +130,7 @@ export default function Checkout() {
         customerName: form.name,
         phoneNumber: form.phone,
         governorate: form.governorate,
+        email: form.email,
         address: form.address,
         items: cart.map(item => ({
           id: item.id,
@@ -125,22 +143,53 @@ export default function Checkout() {
         discount: discountAmount,
         total,
         promoCode: appliedPromo?.code || null,
+        paymentMethod: paymentMethod, 
+        instapayPhone: paymentMethod === "InstaPay" ? instapayPhone.trim() : null,
         createdAt: serverTimestamp(),
         status: "New",
       };
 
-      // Save order
-      await addDoc(collection(db, "orders"), orderData);
+      // 1. SAVE ORDER AND RETRIEVE THE DOCUMENT REFERENCE
+      const docRef = await addDoc(collection(db, "orders"), orderData);
+      const orderId = docRef.id;
 
-      // Reduce stock
+      // 2. Reduce stock (Existing logic retained)
       for (const item of cart) {
         const productRef = doc(db, "products", item.id);
         await updateDoc(productRef, { stock: increment(-item.quantity) });
       }
 
+      // 3. PREPARE EMAILJS PARAMETERS
+      const templateParams = {
+        customer_name: form.name,
+        customer_email: form.email, 
+        order_id: orderId, 
+        total: total.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        shipping_cost: shippingCost.toFixed(2),
+        discount: discountAmount.toFixed(2),
+        payment_method: paymentMethod,
+        governorate: form.governorate,
+        address: form.address,
+        // Format items for the email body (as a single string for the template)
+        order_details: cart.map(item => 
+          `${item.title} x ${item.quantity} (EGP ${item.price.toFixed(2)})`
+        ).join('\n'), 
+      };
+      
+      // 4. SEND CONFIRMATION EMAIL
+      try {
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+        console.log('SUCCESS! Email sent to customer.');
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+      }
+
       // Clear cart and navigate
       clearCart();
-      navigate("/confirmation", { state: { ...orderData, form } });
+      // Pass the orderId to the confirmation page
+      navigate("/confirmation", { state: { ...orderData, orderId, form } });
+      
     } catch (error) {
       console.error("Error during checkout:", error);
       alert("There was an error processing your order. Please try again.");
@@ -149,6 +198,7 @@ export default function Checkout() {
     }
   };
 
+  // Check for empty cart
   if (!cart.length) {
     return (
       <div className="p-8 text-center text-gray-500">
@@ -164,11 +214,13 @@ export default function Checkout() {
     );
   }
 
+
   return (
     <div className="p-8 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold mb-6">Confirm Your Order</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
 
+        {/* Customer Information Section */}
         <input
           type="text"
           name="name"
@@ -176,6 +228,16 @@ export default function Checkout() {
           value={form.name}
           onChange={handleChange}
           className="w-full border p-2 rounded"
+          required
+        />
+        <input
+          type="email"
+          name="email"
+          placeholder="Email Address"
+          value={form.email}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
         />
         <input
           type="tel"
@@ -184,14 +246,15 @@ export default function Checkout() {
           value={form.phone}
           onChange={handleChange}
           className="w-full border p-2 rounded"
+          required
         />
 
-        {/* Governorate dropdown restored */}
         <select
           name="governorate"
           value={form.governorate}
           onChange={handleChange}
           className="w-full border p-2 rounded"
+          required
         >
           <option value="">Select Governorate</option>
           {governorates.map(gov => (
@@ -208,9 +271,10 @@ export default function Checkout() {
           value={form.address}
           onChange={handleChange}
           className="w-full border p-2 rounded"
+          required
         />
-
-        {/* Promo */}
+        
+        {/* Promo Code Section */}
         <div className="flex gap-2 items-center">
           <input
             type="text"
@@ -231,7 +295,94 @@ export default function Checkout() {
           Applied: {appliedPromo.code} ({appliedPromo.discount}% off)
         </p>}
         {promoError && <p className="text-red-600 text-sm">{promoError}</p>}
+        
+        {/* --- PAYMENT OPTIONS UI --- */}
+        <div className="border border-gray-200 p-4 rounded-lg space-y-4">
+          <h3 className="text-lg font-bold">Payment</h3>
 
+          {/* Option 1: InstaPay */}
+          <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition duration-150 ease-in-out ${paymentMethod === "InstaPay" ? 'border-purple-600 ring-2 ring-purple-300 bg-purple-50' : 'hover:bg-gray-50'}`}>
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="InstaPay"
+              checked={paymentMethod === "InstaPay"}
+              onChange={() => setPaymentMethod("InstaPay")}
+              className="form-radio h-4 w-4 text-[#1C3C85] border-gray-300 focus:ring-[#1C3C85]"
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-purple-700">InstaPay</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              </div>
+              <p className="text-sm text-gray-500">
+                Pay your full order amount instantly.
+              </p>
+            </div>
+          </label>
+
+          {/* InstaPay Details (Conditionally Rendered) */}
+          {paymentMethod === "InstaPay" && (
+            <div className="p-4 bg-purple-50 rounded-lg space-y-3">
+              <p className="font-medium">Step 1: Open InstaPay & Send to Mobile number</p>
+              <div className="relative">
+                <input
+                  type="text"
+                  readOnly
+                  value="01000775276" // Static mobile number
+                  className="w-full border p-3 rounded-lg bg-white font-mono text-lg pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText("01000775276")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-600 hover:text-purple-800"
+                  aria-label="Copy mobile number"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v4m8-4v4m-12 4h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600">
+                Total to send: <span className="font-bold text-lg">{total.toFixed(2)} EGP</span>
+              </p>
+
+              <p className="font-medium">Step 2: Enter Your Mobile Number (Used for Transfer)</p>
+              <input
+                type="tel"
+                name="instapay_phone"
+                placeholder="e.g. 01xxxxxxxxx"
+                value={instapayPhone}
+                onChange={(e) => setInstapayPhone(e.target.value)}
+                className="w-full border p-3 rounded-lg"
+                required={paymentMethod === "InstaPay"}
+              />
+              
+            </div>
+          )}
+
+          {/* Option 2: Cash on Delivery (COD) */}
+          <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition duration-150 ease-in-out ${paymentMethod === "COD" ? 'border-blue-600 ring-2 ring-blue-300 bg-blue-50' : 'hover:bg-gray-50'}`}>
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="COD"
+              checked={paymentMethod === "COD"}
+              onChange={() => setPaymentMethod("COD")}
+              className="form-radio h-4 w-4 text-[#1C3C85] border-gray-300 focus:ring-[#1C3C85]"
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">Cash on Delivery (COD)</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m4 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm2-9a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2V7z" /></svg>
+              </div>
+              <p className="text-sm text-gray-500">
+                Shipping & Service: {shippingCost.toFixed(2)} EGP
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Price Summary */}
         <div className="bg-gray-100 p-4 rounded space-y-1 mt-2">
           <p>Subtotal: {subtotal.toFixed(2)} EGP</p>
           {appliedPromo && <p>Discount: -{discountAmount.toFixed(2)} EGP</p>}
@@ -239,6 +390,7 @@ export default function Checkout() {
           <p className="font-bold">Total: {total.toFixed(2)} EGP</p>
         </div>
 
+        {/* Confirm Button */}
         <button
           type="submit"
           disabled={loading}

@@ -495,6 +495,8 @@ export default function AdminDashboard() {
               <th className="p-3 text-left border-b">Governorate</th>
               <th className="p-3 text-left border-b">Address</th>
               <th className="p-3 text-left border-b">Items</th>
+              <th className="p-3 text-left border-b">Payment Method</th> {/* NEW HEADER */}
+              <th className="p-3 text-left border-b">Payer Phone</th>        {/* NEW HEADER */}
               <th className="p-3 text-left border-b">Total</th>
               <th className="p-3 text-left border-b">Status</th>
               <th className="p-3 text-left border-b">Promo Code</th>
@@ -518,6 +520,16 @@ export default function AdminDashboard() {
                       </div>
                     )) || "—"}
                   </td>
+                  
+                  {/* NEW DATA CELLS */}
+                  <td className="p-3 border-b font-medium">
+                    {order.paymentMethod || "COD"}
+                  </td>
+                  <td className="p-3 border-b">
+                    {order.instapayPhone || "N/A"}
+                  </td>
+                  {/* END NEW DATA CELLS */}
+                  
                   <td className="p-3 border-b font-semibold">
                     ${order.total?.toFixed(2) || "0.00"}
                   </td>
