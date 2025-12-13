@@ -8,10 +8,11 @@ import {
   doc,
   getDoc,
   updateDoc,
-  increment,
+  increment, // <-- ESSENTIAL for stock updates
   query,
   where,
   getDocs,
+  writeBatch, // <-- ESSENTIAL for safe multi-document updates
 } from "firebase/firestore";
 import { db } from "../firebase";
 import emailjs from '@emailjs/browser';
@@ -98,46 +99,133 @@ export default function Checkout() {
     }
     if (!cart.length) return alert("Your cart is empty.");
 
-    // Validation for InstaPay phone
     if (paymentMethod === "InstaPay" && !instapayPhone.trim()) {
       return alert("Please enter the mobile number you used for the InstaPay transfer.");
     }
 
     setLoading(true);
 
+    // --- START: STOCK VALIDATION AND DECREMENT SETUP ---
+    // Use a batch for atomic stock updates (all or nothing)
+    const batch = writeBatch(db);
+    let validationFailed = false;
+
     try {
-      // Validate stock (Existing logic retained)
+      // 1. VALIDATION LOOP (Combined Check)
       for (const item of cart) {
-        const productRef = doc(db, "products", item.id);
-        const productSnap = await getDoc(productRef);
-        if (!productSnap.exists()) {
-          alert(`Product ${item.title} not found.`);
-          setLoading(false);
-          return;
-        }
-        const productData = productSnap.data();
-        if (productData.stock < item.quantity) {
-          alert(
-            `Not enough stock for "${item.title}". Available: ${productData.stock}, Requested: ${item.quantity}`
-          );
-          setLoading(false);
-          return;
+        
+        if (item.isCustomSet) {
+          // A. CUSTOM SET VALIDATION: Check individual sample stock from 'samples' collection
+          
+          if (!item.selectedSamples || item.quantity !== 1) {
+            alert(`Error: Invalid Discovery Set item structure.`);
+            validationFailed = true;
+            break;
+          }
+
+          for (const sample of item.selectedSamples) {
+            const sampleRef = doc(db, "samples", sample.docId);
+            const sampleSnap = await getDoc(sampleRef);
+
+            if (!sampleSnap.exists()) {
+              alert(`Sample for "${sample.title}" not found in database.`);
+              validationFailed = true;
+              break;
+            }
+            
+            const sampleData = sampleSnap.data();
+            // We check if stock is less than the quantity requested (which is 1 per sample)
+            if (sampleData.stock < 1) { 
+              alert(`Not enough stock for Discovery Sample: "${sample.title}".`);
+              validationFailed = true;
+              break;
+            }
+          }
+          if (validationFailed) break;
+
+        } else {
+          // B. STANDARD PRODUCT VALIDATION: Check main 'products' collection
+          const productRef = doc(db, "products", item.id);
+          const productSnap = await getDoc(productRef);
+
+          if (!productSnap.exists()) {
+            alert(`Product ${item.title} not found.`);
+            validationFailed = true;
+            break;
+          }
+          const productData = productSnap.data();
+          if (productData.stock < item.quantity) {
+            alert(
+              `Not enough stock for "${item.title}". Available: ${productData.stock}, Requested: ${item.quantity}`
+            );
+            validationFailed = true;
+            break;
+          }
         }
       }
 
-      // Prepare order
+      if (validationFailed) {
+        setLoading(false);
+        return;
+      }
+      
+      // 2. STOCK DECREMENT SETUP (Prepare the Batch)
+      for (const item of cart) {
+        if (item.isCustomSet) {
+          // A. CUSTOM SET DECREMENT: Decrement stock from 'samples' collection
+          for (const sample of item.selectedSamples) {
+            const sampleRef = doc(db, "samples", sample.docId);
+            // Decrement by 1 for each unique sample used in the set
+            batch.update(sampleRef, { stock: increment(-1) }); 
+          }
+        } else {
+          // B. STANDARD PRODUCT DECREMENT: Decrement stock from 'products' collection
+          const productRef = doc(db, "products", item.id);
+          // Decrement by the item's quantity
+          batch.update(productRef, { stock: increment(-item.quantity) }); 
+        }
+      }
+
+
+      // 3. EXECUTE THE BATCH WRITE (COMMIT STOCK CHANGES)
+      await batch.commit();
+
+      // --- END: STOCK VALIDATION AND DECREMENT SETUP ---
+
+
+      // Prepare order data (Map custom set data cleanly for the final order record)
+      const orderItems = cart.map(item => {
+        if (item.isCustomSet) {
+          // For the final 'orders' collection, we include the custom set selections
+          return {
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            quantity: item.quantity,
+            isCustomSet: true,
+            // Only include essential details for the order record
+            selectedSamples: item.selectedSamples.map(s => s.title), 
+            priceDetails: item.priceDetails,
+          };
+        }
+        // Standard product item structure
+        return {
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          quantity: item.quantity,
+        };
+      });
+
+
+      // Prepare final order document
       const orderData = {
         customerName: form.name,
         phoneNumber: form.phone,
         governorate: form.governorate,
         email: form.email,
         address: form.address,
-        items: cart.map(item => ({
-          id: item.id,
-          title: item.title,
-          price: item.price,
-          quantity: item.quantity,
-        })),
+        items: orderItems, // Use the new clean orderItems array
         subtotal,
         shipping: shippingCost,
         discount: discountAmount,
@@ -149,17 +237,11 @@ export default function Checkout() {
         status: "New",
       };
 
-      // 1. SAVE ORDER AND RETRIEVE THE DOCUMENT REFERENCE
+      // 4. SAVE ORDER AND RETRIEVE THE DOCUMENT REFERENCE
       const docRef = await addDoc(collection(db, "orders"), orderData);
       const orderId = docRef.id;
 
-      // 2. Reduce stock (Existing logic retained)
-      for (const item of cart) {
-        const productRef = doc(db, "products", item.id);
-        await updateDoc(productRef, { stock: increment(-item.quantity) });
-      }
-
-      // 3. PREPARE EMAILJS PARAMETERS
+      // 5. PREPARE EMAILJS PARAMETERS
       const templateParams = {
         customer_name: form.name,
         customer_email: form.email, 
@@ -171,13 +253,16 @@ export default function Checkout() {
         payment_method: paymentMethod,
         governorate: form.governorate,
         address: form.address,
-        // Format items for the email body (as a single string for the template)
-        order_details: cart.map(item => 
-          `${item.title} x ${item.quantity} (EGP ${item.price.toFixed(2)})`
-        ).join('\n'), 
+        // Format items for the email body
+        order_details: orderItems.map(item => {
+            if (item.isCustomSet) {
+                return `${item.title} (EGP ${item.price.toFixed(2)}): Samples: ${item.selectedSamples.join(', ')}`;
+            }
+            return `${item.title} x ${item.quantity} (EGP ${item.price.toFixed(2)})`;
+        }).join('\n'), 
       };
       
-      // 4. SEND CONFIRMATION EMAIL
+      // 6. SEND CONFIRMATION EMAIL
       try {
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
         console.log('SUCCESS! Email sent to customer.');
@@ -185,14 +270,13 @@ export default function Checkout() {
         console.error('Email sending failed:', emailError);
       }
 
-      // Clear cart and navigate
+      // 7. Clear cart and navigate
       clearCart();
-      // Pass the orderId to the confirmation page
       navigate("/confirmation", { state: { ...orderData, orderId, form } });
       
     } catch (error) {
       console.error("Error during checkout:", error);
-      alert("There was an error processing your order. Please try again.");
+      alert("There was an error processing your order. Please try again. Check console for details.");
     } finally {
       setLoading(false);
     }
@@ -216,6 +300,7 @@ export default function Checkout() {
 
 
   return (
+    // ... (rest of the return block remains unchanged) ...
     <div className="p-8 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold mb-6">Confirm Your Order</h2>
       <form onSubmit={handleSubmit} className="space-y-4">

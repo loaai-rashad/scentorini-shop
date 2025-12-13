@@ -1,101 +1,93 @@
 // src/components/ProductsList.jsx
-import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
-// ProductCard is imported here and used inside the standalone section
-import ProductCard from "./ProductCard"; 
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; 
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase'; 
 import LoadingScreen from "./LoadingScreen"; 
-// ProductGroup is the new component handling the titles and 3-column grid
-import ProductGroup from "./ProductGroup"; 
+import ProductGroup from "./ProductGroup"; // Used to display the grid of products
 
 export default function ProductsList() {
-  // State variables for all four distinct product categories
-  const [productsForHim, setProductsForHim] = useState([]);
-  const [productsForHer, setProductsForHer] = useState([]);
-  const [productsForUnisex, setProductsForUnisex] = useState([]);
-  const [productsForTesters, setProductsForTesters] = useState([]); 
-  const [loading, setLoading] = useState(true);
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    
+    // Read the search parameters from the URL (e.g., ?gender=Him)
+    const [searchParams] = useSearchParams();
+    const genderFilter = searchParams.get('gender'); 
+    
+    // Set the title for the page (e.g., "Scentorini for Him")
+    const pageTitle = genderFilter 
+        ? `Scentorini for ${genderFilter}` 
+        : 'Scentorini Collection';
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "products"));
-        const productsArray = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          rating: 0, 
-          // Ensure all product data, including the 'for' field, is spread here
-          ...doc.data(),
-        }));
-        
-        // --- Filtering Logic (Exact Match on 'for' field) ---
-        // Note: The logic uses .toLowerCase() === to handle case variations (e.g., Him, him, HIM)
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setLoading(true);
+            try {
+                const productsRef = collection(db, "products");
+                let productsQuery;
+                let filteredGenders = [];
 
-        const himProducts = productsArray.filter(
-             product => product.for && product.for.toLowerCase() === "him"
-        );
-        const herProducts = productsArray.filter(
-             product => product.for && product.for.toLowerCase() === "her"
-        );
-        const unisexProducts = productsArray.filter(
-             product => product.for && product.for.toLowerCase() === "unisex"
-        ); 
-        const testerProducts = productsArray.filter(
-             product => product.for && product.for.toLowerCase() === "tester"
-        ); 
+                // Determine the filter value and normalize it to lowercase for comparison
+                const filterValue = genderFilter ? genderFilter.toLowerCase() : null;
 
-        setProductsForHim(himProducts);
-        setProductsForHer(herProducts);
-        setProductsForUnisex(unisexProducts);
-        setProductsForTesters(testerProducts);
-        
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+                // --- 1. Determine which Firestore categories to fetch (Now checking both cases) ---
+                if (filterValue === "him") {
+                    // For 'Him', fetch products tagged as: him, Him, unisex, Unisex, tester, Tester
+                    filteredGenders = ["him", "Him", "unisex", "Unisex", "tester", "Tester"]; 
+                } else if (filterValue === "her") {
+                    // For 'Her', fetch products tagged as: her, Her, unisex, Unisex, tester, Tester
+                    filteredGenders = ["her", "Her", "unisex", "Unisex", "tester", "Tester"];
+                } 
+                
+                // --- 2. Construct the Firestore Query ---
+                if (filteredGenders.length > 0) {
+                    // Use 'where' with 'in' to get all required categories (up to 10 values supported)
+                    productsQuery = query(
+                        productsRef, 
+                        // The 'in' operator now checks against 6 possible string values
+                        where("for", "in", filteredGenders) 
+                    );
+                } else {
+                    // Fallback: If no filter is present, fetch all products
+                    productsQuery = productsRef;
+                }
 
-    fetchProducts();
-  }, []);
+                const snapshot = await getDocs(productsQuery);
+                const productsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                
+                setProducts(productsData);
 
-  if (loading) return <LoadingScreen />; 
-  
-  // Find the Hidden Desire product for the standalone card 
-  // We search across all lists to ensure we find it, even if its 'for' field changes.
-  const allProducts = [...productsForHim, ...productsForHer, ...productsForUnisex, ...productsForTesters];
-  const hiddenDesireProduct = allProducts.find(
-    product => product.title && product.title.toLowerCase() === "hidden desire"
-  );
+            } catch (error) {
+                console.error("Error fetching products:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-  return (
-    <div className="container mx-auto py-10">
-      
-      {/* 1. Scentorini for Him Section */}
-      <ProductGroup 
-        title="Scentorini for Him" 
-        products={productsForHim} 
-      />
+        fetchProducts();
+    }, [genderFilter]); 
+    
+    // --- Rendering Logic ---
 
-      {/* 2. Scentorini for Her Section */}
-      <ProductGroup 
-        title="Scentorini for Her" 
-        products={productsForHer} 
-      />
-      
-      {/* 3. Scentorini Unisex Selection (This includes Hidden Desire) */}
-      <ProductGroup 
-        title="Scentorini Unisex Selection" 
-        products={productsForUnisex} 
-      />
+    if (loading) {
+        return <LoadingScreen />;
+    }
+    
+    return (
+        <div className="p-8 max-w-7xl mx-auto">
+            <h1 className="text-3xl font-bold mb-8 text-center">{pageTitle}</h1>
+            
+            {/* Display the single, combined list of filtered products */}
+            <ProductGroup products={products} />
 
-      {/* 4. Scentorini Testers Section */}
-      <ProductGroup 
-        title="Scentorini Testers" 
-        products={productsForTesters} 
-      />
-
-  
-      
-    </div>
-  );
+            {products.length === 0 && (
+                <p className="text-center text-gray-500 mt-10">
+                    We're currently updating our collection for {genderFilter || 'this category'}. Check back soon!
+                </p>
+            )}
+        </div>
+    );
 }

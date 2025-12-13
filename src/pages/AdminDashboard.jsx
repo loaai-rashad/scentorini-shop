@@ -9,6 +9,7 @@ import {
   updateDoc,
   addDoc,
   deleteDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,14 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [promoCodes, setPromoCodes] = useState([]);
   const [products, setProducts] = useState([]);
+  // --- NEW STATE FOR SAMPLES ---
+  const [samples, setSamples] = useState([]);
+  const [newSample, setNewSample] = useState({
+    title: "",
+    price: "",
+    stock: "",
+  });
+  // -----------------------------
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
@@ -96,6 +105,18 @@ export default function AdminDashboard() {
     });
     return () => unsubscribe();
   }, []);
+  
+  // --- REAL-TIME SAMPLES FETCHING ---
+  useEffect(() => {
+    const samplesRef = collection(db, "samples");
+    const unsubscribe = onSnapshot(samplesRef, snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSamples(data);
+    });
+    return () => unsubscribe();
+  }, []);
+  // ------------------------------------
+
 
   const handleLogout = () => {
     localStorage.removeItem("isAdmin");
@@ -136,7 +157,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Promo Management
+  // Promo Management (unchanged)
   const handleCreatePromo = async () => {
     if (!newPromo.code || !newPromo.discount)
       return alert("Enter code and discount");
@@ -168,7 +189,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Product Management
+  // Product Management (unchanged logic)
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
@@ -227,6 +248,66 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- SAMPLE MANAGEMENT FUNCTIONS ---
+  const handleSampleChange = (id, field, value) => {
+    setSamples(prev =>
+      prev.map(s => (s.id === id ? { ...s, [field]: value } : s))
+    );
+  };
+
+  const handleSaveSample = async id => {
+    try {
+      const sampleRef = doc(db, "samples", id);
+      const sample = samples.find(s => s.id === id);
+      await updateDoc(sampleRef, {
+        title: sample.title,
+        price: parseFloat(sample.price),
+        stock: parseInt(sample.stock),
+      });
+      alert("Sample updated successfully!");
+    } catch (error) {
+      console.error("Error updating sample:", error);
+      alert("Failed to update sample.");
+    }
+  };
+
+  const handleAddSample = async () => {
+    if (!newSample.title || !newSample.price)
+      return alert("Title and price are required.");
+      
+    try {
+      // Check for uniqueness before adding
+      const q = query(collection(db, "samples"), where("title", "==", newSample.title.trim()));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        return alert("A sample with this title already exists.");
+      }
+
+      await addDoc(collection(db, "samples"), {
+        title: newSample.title.trim(),
+        price: parseFloat(newSample.price) || 0,
+        stock: parseInt(newSample.stock) || 0,
+      });
+      setNewSample({ title: "", price: "", stock: "" });
+    } catch (error) {
+      console.error("Error adding sample:", error);
+      alert("Failed to add sample.");
+    }
+  };
+
+  const handleDeleteSample = async id => {
+    if (!window.confirm("Are you sure you want to delete this sample?")) return;
+    try {
+      await deleteDoc(doc(db, "samples", id));
+    } catch (error) {
+      console.error("Error deleting sample:", error);
+      alert("Failed to delete sample.");
+    }
+  };
+  // ------------------------------------
+
+
   // Quick stats
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -249,7 +330,25 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Promo Codes */}
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-gray-500 text-sm">Total Orders</h2>
+          <p className="text-2xl font-bold">{totalOrders}</p>
+        </div>
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-gray-500 text-sm">Total Revenue</h2>
+          <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
+        </div>
+        {statuses.map(status => (
+          <div key={status} className={`p-4 shadow rounded ${statusColors[status]}`}>
+            <h2 className="text-gray-500 text-sm">{status} Orders</h2>
+            <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
+          </div>
+        ))}
+      </div>
+      
+      {/* Promo Codes (unchanged) */}
       <div className="p-4 bg-gray-100 rounded shadow">
         <h2 className="text-xl font-semibold mb-2">Manage Promo Codes</h2>
         <div className="flex gap-2 mb-2">
@@ -300,8 +399,118 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-            {/* Product Management */}
-            <div className="p-4 bg-gray-100 rounded shadow">
+      {/* --- NEW: SAMPLE MANAGEMENT --- */}
+      <div className="p-4 bg-gray-100 rounded shadow">
+        <h2 className="text-xl font-semibold mb-3 text-indigo-700">
+          Manage Sample Inventory (`samples` collection)
+        </h2>
+
+        {/* Add Sample */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+          <input
+            type="text"
+            placeholder="Title (e.g., island blush)"
+            value={newSample.title}
+            onChange={e =>
+              setNewSample(prev => ({ ...prev, title: e.target.value }))
+            }
+            className="px-2 py-1 border rounded col-span-2"
+          />
+          <input
+            type="number"
+            placeholder="Price (EGP)"
+            value={newSample.price}
+            onChange={e =>
+              setNewSample(prev => ({ ...prev, price: e.target.value }))
+            }
+            className="px-2 py-1 border rounded"
+          />
+          <input
+            type="number"
+            placeholder="Stock"
+            value={newSample.stock}
+            onChange={e =>
+              setNewSample(prev => ({ ...prev, stock: e.target.value }))
+            }
+            className="px-2 py-1 border rounded"
+          />
+          <button
+            onClick={handleAddSample}
+            className="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+          >
+            Add Sample
+          </button>
+        </div>
+
+        {/* Sample Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 bg-white">
+            <thead className="bg-indigo-50">
+              <tr>
+                <th className="p-2 border-b text-left">Title</th>
+                <th className="p-2 border-b">Price (EGP)</th>
+                <th className="p-2 border-b">Stock</th>
+                <th className="p-2 border-b">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {samples.map(s => (
+                <tr key={s.id} className="hover:bg-gray-50">
+                  <td className="p-2 border-b">
+                    <input
+                      type="text"
+                      value={s.title}
+                      onChange={e =>
+                        handleSampleChange(s.id, "title", e.target.value)
+                      }
+                      className="w-full border rounded px-2 py-1"
+                    />
+                  </td>
+                  <td className="p-2 border-b">
+                    <input
+                      type="number"
+                      value={s.price}
+                      onChange={e =>
+                        handleSampleChange(s.id, "price", e.target.value)
+                      }
+                      className="w-24 border rounded px-2 py-1"
+                    />
+                  </td>
+                  <td className="p-2 border-b">
+                    <input
+                      type="number"
+                      value={s.stock}
+                      onChange={e =>
+                        handleSampleChange(s.id, "stock", e.target.value)
+                      }
+                      className="w-20 border rounded px-2 py-1"
+                    />
+                  </td>
+                  <td className="p-2 border-b flex gap-2">
+                    <button
+                      onClick={() => handleSaveSample(s.id)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSample(s.id)}
+                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* --- END: SAMPLE MANAGEMENT --- */}
+
+
+      {/* Product Management (Moved down, unchanged logic) */}
+      <div className="p-4 bg-gray-100 rounded shadow">
         <h2 className="text-xl font-semibold mb-3">Manage Products</h2>
 
         {/* Add Product */}
@@ -466,25 +675,7 @@ export default function AdminDashboard() {
       </div>
 
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Orders</h2>
-          <p className="text-2xl font-bold">{totalOrders}</p>
-        </div>
-        <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Revenue</h2>
-          <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
-        </div>
-        {statuses.map(status => (
-          <div key={status} className={`p-4 shadow rounded ${statusColors[status]}`}>
-            <h2 className="text-gray-500 text-sm">{status} Orders</h2>
-            <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Orders Table */}
+      {/* Orders Table (unchanged from last revision) */}
       <div className="overflow-x-auto">
         <table className="min-w-full border border-gray-200">
           <thead className="bg-gray-100">
@@ -495,8 +686,8 @@ export default function AdminDashboard() {
               <th className="p-3 text-left border-b">Governorate</th>
               <th className="p-3 text-left border-b">Address</th>
               <th className="p-3 text-left border-b">Items</th>
-              <th className="p-3 text-left border-b">Payment Method</th> {/* NEW HEADER */}
-              <th className="p-3 text-left border-b">Payer Phone</th>        {/* NEW HEADER */}
+              <th className="p-3 text-left border-b">Payment Method</th> 
+              <th className="p-3 text-left border-b">Payer Phone</th>        
               <th className="p-3 text-left border-b">Total</th>
               <th className="p-3 text-left border-b">Status</th>
               <th className="p-3 text-left border-b">Promo Code</th>
@@ -513,22 +704,42 @@ export default function AdminDashboard() {
                   <td className="p-3 border-b">{order.phoneNumber || "—"}</td>
                   <td className="p-3 border-b">{order.governorate || "—"}</td>
                   <td className="p-3 border-b">{order.address || "—"}</td>
+                  
+                  {/* --- ITEMS CELL (Displays Discovery Set details) --- */}
                   <td className="p-3 border-b">
                     {order.items?.map(item => (
                       <div key={item.id} className="mb-1">
-                        {item.title} x {item.quantity} (${item.price.toFixed(2)})
+                        <span className="font-semibold">
+                            {item.title} 
+                        </span> 
+                        {/* Only display quantity for the main set item (always 1) or a standard product */}
+                        {!item.isCustomSet && ` x ${item.quantity}`} 
+                        
+                        <span className="text-gray-500"> 
+                            (${item.price.toFixed(2)})
+                        </span>
+                        
+                        {/* --- DISCOVERY SET DETAILS --- */}
+                        {item.isCustomSet && item.selectedSamples && (
+                            <div className="text-xs text-blue-700 mt-0.5 ml-2 border-l-2 pl-2 border-blue-200">
+                                <strong>Samples: </strong>
+                                {item.selectedSamples.join(', ')}
+                                <span className="text-gray-500"> ({item.priceDetails?.count} items)</span>
+                            </div>
+                        )}
+                        {/* --- END DISCOVERY SET DETAILS --- */}
+
                       </div>
                     )) || "—"}
                   </td>
+                  {/* --- END ITEMS CELL --- */}
                   
-                  {/* NEW DATA CELLS */}
                   <td className="p-3 border-b font-medium">
                     {order.paymentMethod || "COD"}
                   </td>
                   <td className="p-3 border-b">
                     {order.instapayPhone || "N/A"}
                   </td>
-                  {/* END NEW DATA CELLS */}
                   
                   <td className="p-3 border-b font-semibold">
                     ${order.total?.toFixed(2) || "0.00"}
