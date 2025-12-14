@@ -49,14 +49,13 @@ export default function ProductPage() {
     <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative max-w-6xl mx-auto">
       
       {/* Product Image Container */}
-      {/* --- CRITICAL FIX: Applying a maximum height limit to control desktop image size --- */}
       <div 
         className="
           flex-shrink-0 
           w-full md:w-1/3 
-          h-[24rem]              /* Fixed height (384px) for mobile/small screens (Vertical Layout) */
-          md:h-auto             /* Allows natural scaling for desktop */
-          md:max-h-[36rem]      /* <-- NEW: Capping the height at 576px on desktop/laptops */
+          h-[24rem]
+          md:h-auto
+          md:max-h-[36rem]
           overflow-hidden
           shadow-lg rounded-lg
         "
@@ -68,10 +67,19 @@ export default function ProductPage() {
         />
       </div>
 
-      {/* Product Details (Unchanged) */}
+      {/* Product Details - CHANGES BELOW */}
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
+        
+        {/* --- NEW: Display the Inspired By field --- */}
+        {product.inspiredBy && (
+            <p className="text-md font-medium text-stone-700 p-2 border-l-4 border-stone-300 bg-stone-50">
+                Inspired by: <span className="font-semibold text-stone-900">{product.inspiredBy}</span>
+            </p>
+        )}
+        {/* ------------------------------------------- */}
+
         <p className="text-2xl font-semibold text-stone-900">
           EGP{product.price.toFixed(2)}
         </p>

@@ -18,7 +18,8 @@ export default function AdminProducts({
         <h2 className="text-xl font-semibold mb-3">Manage Products</h2>
 
         {/* Add Product */}
-        <div className="grid grid-cols-1 md:grid-cols-9 gap-2 mb-3">
+        {/* NOTE: Changed grid to md:grid-cols-10 to fit the new field and the Add button */}
+        <div className="grid grid-cols-1 md:grid-cols-10 gap-2 mb-3">
           <input
             type="text"
             placeholder="Title"
@@ -46,6 +47,17 @@ export default function AdminProducts({
             }
             className="px-2 py-1 border rounded"
           />
+          {/* --- NEW FIELD: INSPIRED BY (for Adding) --- */}
+          <input
+            type="text"
+            placeholder="Inspired By"
+            value={newProduct.inspiredBy || ""}
+            onChange={e =>
+              setNewProduct(prev => ({ ...prev, inspiredBy: e.target.value }))
+            }
+            className="px-2 py-1 border rounded"
+          />
+          {/* ------------------------------------------- */}
           <input
             type="number"
             placeholder="Price"
@@ -71,20 +83,11 @@ export default function AdminProducts({
             onChange={e =>
               setNewProduct(prev => ({ ...prev, image: e.target.value }))
             }
-            className="px-2 py-1 border rounded"
-          />
-          <input
-            type="text"
-            placeholder="Short Description"
-            value={newProduct.description}
-            onChange={e =>
-              setNewProduct(prev => ({ ...prev, description: e.target.value }))
-            }
-            className="px-2 py-1 border rounded"
+            className="px-2 py-1 border rounded col-span-2"
           />
           <button
             onClick={handleAddProduct}
-            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 col-span-2 md:col-span-1"
+            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 md:col-span-1"
           >
             Add
           </button>
@@ -99,6 +102,9 @@ export default function AdminProducts({
                 <th className="p-2 border-b">Title</th>
                 <th className="p-2 border-b">Subtitle</th>
                 <th className="p-2 border-b">For</th> 
+                {/* --- NEW COLUMN HEADER --- */}
+                <th className="p-2 border-b">Inspired By</th> 
+                {/* ------------------------- */}
                 <th className="p-2 border-b">Price</th>
                 <th className="p-2 border-b">Stock</th>
                 <th className="p-2 border-b">Description</th>
@@ -145,6 +151,18 @@ export default function AdminProducts({
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>
+                  {/* --- NEW INPUT FIELD (for Editing) --- */}
+                  <td className="p-2 border-b">
+                    <input
+                      type="text"
+                      value={p.inspiredBy || ""}
+                      onChange={e =>
+                        handleProductChange(p.id, "inspiredBy", e.target.value)
+                      }
+                      className="w-32 border rounded px-2 py-1"
+                    />
+                  </td>
+                  {/* ------------------------------------ */}
                   <td className="p-2 border-b">
                     <input
                       type="number"

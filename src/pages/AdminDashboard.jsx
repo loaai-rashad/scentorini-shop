@@ -32,8 +32,17 @@ export default function AdminDashboard() {
   // States for creation forms
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
   const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
+  
+  // 1. UPDATED: newProduct state now includes 'inspiredBy'
   const [newProduct, setNewProduct] = useState({
-    title: "", subtitle: "", price: "", stock: "", image: "", description: "", for: "", 
+    title: "", 
+    subtitle: "", 
+    price: "", 
+    stock: "", 
+    image: "", 
+    description: "", 
+    for: "", 
+    inspiredBy: "", // <-- ADDED FIELD
   });
 
   const [loading, setLoading] = useState(true);
@@ -194,6 +203,7 @@ export default function AdminDashboard() {
     );
   };
 
+  // 2. UPDATED: handleSaveProduct now includes 'inspiredBy'
   const handleSaveProduct = async id => {
     try {
       const productRef = doc(db, "products", id);
@@ -206,6 +216,7 @@ export default function AdminDashboard() {
         image: product.image,
         description: product.description,
         for: product.for, 
+        inspiredBy: product.inspiredBy || "", // <-- ADDED FIELD
       });
       alert("Product updated successfully!");
     } catch (error) {
@@ -214,6 +225,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // 3. UPDATED: handleAddProduct now clears 'inspiredBy'
   const handleAddProduct = async () => {
     if (!newProduct.title || !newProduct.price || !newProduct.for)
       return alert("Title, price, and 'For' field are required.");
@@ -224,7 +236,17 @@ export default function AdminDashboard() {
         price: parseFloat(newProduct.price),
         stock: parseInt(newProduct.stock) || 0,
       });
-      setNewProduct({ title: "", subtitle: "", price: "", stock: "", image: "", description: "", for: "", });
+      // Clear all fields, including the new one
+      setNewProduct({ 
+        title: "", 
+        subtitle: "", 
+        price: "", 
+        stock: "", 
+        image: "", 
+        description: "", 
+        for: "", 
+        inspiredBy: "", // <-- ADDED FIELD
+      });
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Failed to add product.");
