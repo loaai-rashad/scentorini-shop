@@ -1,9 +1,10 @@
 // src/components/ProductGroup.jsx
+
 import React from 'react';
-import ProductCard from './ProductCard'; // Make sure this import path is correct
+import ProductCard from './ProductCard'; 
 
 export default function ProductGroup({ title, products }) {
-  // If no products, don't render the section
+  
   if (!products || products.length === 0) {
     return null;
   }
@@ -15,8 +16,13 @@ export default function ProductGroup({ title, products }) {
         {title}
       </h2>
 
-      {/* 3-Column Grid Layout: This implements the 3-product-per-row design */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4 sm:px-8">
+      {/* --- CRITICAL EDIT: Grid Columns Adjusted --- */}
+      {/* - grid-cols-1: Default (Mobile Phones) -> 1 column
+        - sm:grid-cols-2: Small Screens (Small Tablets/Large Phones) -> 2 columns
+        - md:grid-cols-3: Medium Screens (Tablets/Small Desktops) -> 3 columns
+        - lg:grid-cols-4: Large Screens (Desktop) -> 4 columns 
+      */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
         {products.map(product => (
           <ProductCard key={product.id} {...product} />
         ))}
