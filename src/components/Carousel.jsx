@@ -38,20 +38,20 @@ export default function HeroBanner() {
             }}
         >
             
-            <h2 className="text-3xl md:text-5xl font-serif text-white mb-8 drop-shadow-lg text-center">
+            <h2 className="text-3xl md:text-5xl font-montserrat bold text-white mb-8 drop-shadow-lg text-center">
                 Find Your Signature Scent
             </h2>
-            
+
             <div className="flex space-x-4">
                 <button
                     onClick={() => handleFilterNavigation('Her')}
-                    className="px-8 py-3 text-lg font-semibold text-[#4B0082] bg-white rounded-full shadow-xl hover:bg-gray-100 transition duration-300 transform hover:scale-105"
+                    className="px-8 py-3 text-lg font-semibold text-[#2e1f88] bg-white rounded-full shadow-xl hover:bg-gray-100 transition duration-300 transform hover:scale-105"
                 >
                     For Her
                 </button>
                 <button
                     onClick={() => handleFilterNavigation('Him')}
-                    className="px-8 py-3 text-lg font-semibold text-white bg-[#4B0082] rounded-full shadow-xl hover:bg-[#6A0DAD] transition duration-300 transform hover:scale-105"
+                    className="px-8 py-3 text-lg font-semibold text-white bg-[#2e1f88] rounded-full shadow-xl hover:bg-[#6A0DAD] transition duration-300 transform hover:scale-105"
                 >
                     For Him
                 </button>

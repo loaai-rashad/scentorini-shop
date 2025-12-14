@@ -47,7 +47,7 @@ function App() {
                 {/* --- NEW SECTION: Discovery Set Builder --- */}
                 {/* The card is now rendered by a separate, data-driven component */}
                 <section className="p-8 max-w-7xl mx-auto my-12">
-                    <h2 className="text-3xl font-serif font-bold text-[#1C3C85] text-center mb-6">
+                    <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
                         Design Your Experience
                     </h2>
                     <p className="text-center text-gray-600 mb-10">
