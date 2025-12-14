@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom'; 
-// We are using the 'where' operator with the 'in' clause
 import { collection, query, where, getDocs } from 'firebase/firestore'; 
 import { db } from '../firebase'; 
 import LoadingScreen from "./LoadingScreen"; 
@@ -26,7 +25,7 @@ export default function ProductsList() {
                 const productsRef = collection(db, "products");
                 let productsQuery;
                 
-                let requiredTags = []; // Array of string values for the 'for' field
+                let requiredTags = []; 
 
                 const filterValue = genderFilter ? genderFilter.toLowerCase() : null;
 
@@ -35,8 +34,8 @@ export default function ProductsList() {
                     // For Him: Only includes 'him' and 'unisex'
                     requiredTags = ["him", "Him", "unisex", "Unisex"]; 
                 } else if (filterValue === "her") {
-                    // For Her: Includes 'her', 'unisex', AND 'oil'
-                    requiredTags = ["her", "Her", "unisex", "Unisex", "oil", "Oil"]; 
+                    // For Her: Includes 'her', 'unisex', 'oil', AND 'tester' <--- CORRECTED
+                    requiredTags = ["her", "Her", "unisex", "Unisex", "oil", "Oil", "tester", "Tester"]; 
                 } 
                 
                 // --- 2. Construct the Firestore Query using 'where' with 'in' ---
@@ -53,16 +52,15 @@ export default function ProductsList() {
 
                 const snapshot = await getDocs(productsQuery);
                 
-                // Filter out any 'tester' products post-fetch, as they shouldn't show up here
+                // --- 3. UPDATED: Remove the blanket exclusion filter ---
+                // We no longer need to filter out 'tester' products here,
+                // because the Firestore query now handles which 'for' values are included.
+                // Since 'tester' is only included in the 'her' filter, it will only show up there.
                 const productsData = snapshot.docs
                     .map(doc => ({
                         id: doc.id,
                         ...doc.data(),
-                    }))
-                    .filter(product => {
-                        // Exclude any product where the single string 'for' equals 'tester'
-                        return String(product.for).toLowerCase() !== 'tester';
-                    });
+                    })); // Removed the .filter() chain
                 
                 setProducts(productsData);
 
@@ -76,9 +74,9 @@ export default function ProductsList() {
         fetchProducts();
     }, [genderFilter]); 
     
-    // ... (rest of the component remains unchanged)
     
-    // ... (render logic remains unchanged)
+    if (loading) return <LoadingScreen />;
+    
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold mb-8 text-center">{pageTitle}</h1>
