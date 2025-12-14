@@ -1,20 +1,20 @@
 // src/components/ProductsList.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom'; 
-import { collection, query, where, getDocs } from 'firebase/firestore';
+// We are using the 'where' operator with the 'in' clause
+import { collection, query, where, getDocs } from 'firebase/firestore'; 
 import { db } from '../firebase'; 
 import LoadingScreen from "./LoadingScreen"; 
-import ProductGroup from "./ProductGroup"; // Used to display the grid of products
+import ProductGroup from "./ProductGroup"; 
 
 export default function ProductsList() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // Read the search parameters from the URL (e.g., ?gender=Him)
     const [searchParams] = useSearchParams();
     const genderFilter = searchParams.get('gender'); 
     
-    // Set the title for the page (e.g., "Scentorini for Him")
     const pageTitle = genderFilter 
         ? `Scentorini for ${genderFilter}` 
         : 'Scentorini Collection';
@@ -25,27 +25,26 @@ export default function ProductsList() {
             try {
                 const productsRef = collection(db, "products");
                 let productsQuery;
-                let filteredGenders = [];
+                
+                let requiredTags = []; // Array of string values for the 'for' field
 
-                // Determine the filter value and normalize it to lowercase for comparison
                 const filterValue = genderFilter ? genderFilter.toLowerCase() : null;
 
-                // --- 1. Determine which Firestore categories to fetch (Now checking both cases) ---
+                // --- 1. Determine the required tags for filtering ---
                 if (filterValue === "him") {
-                    // For 'Him', fetch products tagged as: him, Him, unisex, Unisex, tester, Tester
-                    filteredGenders = ["him", "Him", "unisex", "Unisex", "tester", "Tester"]; 
+                    // For Him: Only includes 'him' and 'unisex'
+                    requiredTags = ["him", "Him", "unisex", "Unisex"]; 
                 } else if (filterValue === "her") {
-                    // For 'Her', fetch products tagged as: her, Her, unisex, Unisex, tester, Tester
-                    filteredGenders = ["her", "Her", "unisex", "Unisex", "tester", "Tester"];
+                    // For Her: Includes 'her', 'unisex', AND 'oil'
+                    requiredTags = ["her", "Her", "unisex", "Unisex", "oil", "Oil"]; 
                 } 
                 
-                // --- 2. Construct the Firestore Query ---
-                if (filteredGenders.length > 0) {
-                    // Use 'where' with 'in' to get all required categories (up to 10 values supported)
+                // --- 2. Construct the Firestore Query using 'where' with 'in' ---
+                if (requiredTags.length > 0) {
                     productsQuery = query(
                         productsRef, 
-                        // The 'in' operator now checks against 6 possible string values
-                        where("for", "in", filteredGenders) 
+                        // The 'in' operator now checks if the single string 'for' matches any of the tags
+                        where("for", "in", requiredTags) 
                     );
                 } else {
                     // Fallback: If no filter is present, fetch all products
@@ -53,10 +52,17 @@ export default function ProductsList() {
                 }
 
                 const snapshot = await getDocs(productsQuery);
-                const productsData = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
+                
+                // Filter out any 'tester' products post-fetch, as they shouldn't show up here
+                const productsData = snapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }))
+                    .filter(product => {
+                        // Exclude any product where the single string 'for' equals 'tester'
+                        return String(product.for).toLowerCase() !== 'tester';
+                    });
                 
                 setProducts(productsData);
 
@@ -70,17 +76,13 @@ export default function ProductsList() {
         fetchProducts();
     }, [genderFilter]); 
     
-    // --- Rendering Logic ---
-
-    if (loading) {
-        return <LoadingScreen />;
-    }
+    // ... (rest of the component remains unchanged)
     
+    // ... (render logic remains unchanged)
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold mb-8 text-center">{pageTitle}</h1>
             
-            {/* Display the single, combined list of filtered products */}
             <ProductGroup products={products} />
 
             {products.length === 0 && (
