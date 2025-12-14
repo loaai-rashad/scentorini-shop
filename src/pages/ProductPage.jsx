@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
-import LoadingScreen from "../components/LoadingScreen"; // ✅ Import it
+import LoadingScreen from "../components/LoadingScreen"; 
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -13,6 +13,7 @@ export default function ProductPage() {
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
+    // ... (fetch logic remains unchanged)
     const fetchProduct = async () => {
       try {
         const docRef = doc(db, "products", id);
@@ -45,17 +46,29 @@ export default function ProductPage() {
   if (!product) return <div className="min-h-screen p-8">Product not found</div>;
 
   return (
-    <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative">
-      {/* Product Image */}
-      <div className="flex-shrink-0 w-full md:w-1/3">
+    <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative max-w-6xl mx-auto">
+      
+      {/* Product Image Container */}
+      {/* --- CRITICAL FIX: Applying a maximum height limit to control desktop image size --- */}
+      <div 
+        className="
+          flex-shrink-0 
+          w-full md:w-1/3 
+          h-[24rem]              /* Fixed height (384px) for mobile/small screens (Vertical Layout) */
+          md:h-auto             /* Allows natural scaling for desktop */
+          md:max-h-[36rem]      /* <-- NEW: Capping the height at 576px on desktop/laptops */
+          overflow-hidden
+          shadow-lg rounded-lg
+        "
+      >
         <img
           src={product.image || "/perfume.jpeg"}
           alt={product.title}
-          className="w-full h-auto object-cover rounded-lg shadow-lg"
+          className="w-full h-full object-cover" 
         />
       </div>
 
-      {/* Product Details */}
+      {/* Product Details (Unchanged) */}
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
@@ -81,12 +94,12 @@ export default function ProductPage() {
         )}
       </div>
 
-      {/* Toast Notification */}
+      {/* Toast Notification (Unchanged) */}
       {showToast && (
-  <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-6 py-3 rounded shadow-lg z-50 animate-slide-down">
-    Item added to cart!
-  </div>
-)}
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-6 py-3 rounded shadow-lg z-50 animate-slide-down">
+          Item added to cart!
+        </div>
+      )}
     </div>
   );
 }
