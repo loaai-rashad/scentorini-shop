@@ -206,7 +206,7 @@ export default function DiscoverySetPage() {
             <div className="space-y-4">
                 {selections.map((selection, index) => (
                     <div key={index} className="flex flex-col">
-                        <label className="mb-1 font-medium text-gray-700">Option {index + 1} (Max 6)</label>
+                        <label className="mb-1 font-medium text-gray-700">Option {index + 1} </label>
                         <select
                             className="p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1C3C85] appearance-none"
                             value={selection || ''}
