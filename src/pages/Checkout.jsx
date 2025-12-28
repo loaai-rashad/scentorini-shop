@@ -309,7 +309,7 @@ export default function Checkout() {
         <input
           type="text"
           name="name"
-          placeholder="Full Name"
+          placeholder="First Name & Last Name"
           value={form.name}
           onChange={handleChange}
           className="w-full border p-2 rounded"
