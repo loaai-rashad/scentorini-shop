@@ -48,7 +48,7 @@ export default function ProductPage() {
   return (
     <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative max-w-6xl mx-auto">
       
-      {/* Product Image Container */}
+      {/* Product Image Container (No Change) */}
       <div 
         className="
           flex-shrink-0 
@@ -67,12 +67,12 @@ export default function ProductPage() {
         />
       </div>
 
-      {/* Product Details - CHANGES BELOW */}
+      {/* Product Details - Logic updated to move the button */}
       <div className="flex-1 flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{product.title}</h1>
         <p className="text-stone-500">{product.subtitle}</p>
         
-        {/* --- NEW: Display the Inspired By field --- */}
+        {/* --- Display the Inspired By field (No Change) --- */}
         {product.inspiredBy && (
             <p className="text-md font-medium text-stone-700 p-2 border-l-4 border-stone-300 bg-stone-50">
                 Inspired by: <span className="font-semibold text-stone-900">{product.inspiredBy}</span>
@@ -83,23 +83,29 @@ export default function ProductPage() {
         <p className="text-2xl font-semibold text-stone-900">
           EGP{product.price.toFixed(2)}
         </p>
-        <p className="text-stone-700">{product.description}</p>
-
+        
+        {/* === MOVED BUTTON BLOCK (Now immediately follows the Price) === */}
         {product.stock > 0 ? (
           <button
-            className="mt-4 bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+            // Removed mt-4 to reduce margin since it's now higher up
+            className="bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition" 
             onClick={() => handleAddToCart(product)}
           >
             Add to Cart
           </button>
         ) : (
           <button
-            className="mt-4 bg-gray-400 text-white py-2 px-4 rounded cursor-not-allowed"
+            // Removed mt-4
+            className="bg-gray-400 text-white py-2 px-4 rounded cursor-not-allowed"
             disabled
           >
             Out of Stock
           </button>
         )}
+        {/* ============================================================= */}
+        
+        {/* The Description now follows the button */}
+        <p className="text-stone-700">{product.description}</p>
       </div>
 
       {/* Toast Notification (Unchanged) */}
