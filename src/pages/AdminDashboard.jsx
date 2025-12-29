@@ -10,6 +10,7 @@ import {
   addDoc,
   deleteDoc,
   where,
+  deleteField, // <--- 1. NEW IMPORT (Kept)
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,9 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminProducts from '../components/admin/AdminProducts'; 
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
+
+// REMOVED: processImageUrls and formatImagesForInputOnLoad helpers are no longer needed, 
+// as AdminProducts now handles the array directly.
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -33,16 +37,16 @@ export default function AdminDashboard() {
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
   const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
   
-  // 1. UPDATED: newProduct state now includes 'inspiredBy'
+  // UPDATED: 'imageInput' is replaced with 'images' array for the creation form
   const [newProduct, setNewProduct] = useState({
     title: "", 
     subtitle: "", 
     price: "", 
     stock: "", 
-    image: "", 
+    images: [], // <-- KEY CHANGE: initialized as an array
     description: "", 
     for: "", 
-    inspiredBy: "", // <-- ADDED FIELD
+    inspiredBy: "", 
   });
 
   const [loading, setLoading] = useState(true);
@@ -58,7 +62,7 @@ export default function AdminDashboard() {
     Delivered: "bg-green-200 text-green-800",
   };
 
-  // --- DATA FETCHING (All useEffects remain here) ---
+  // --- DATA FETCHING ---
   // Security check
   useEffect(() => { 
     const isAdmin = localStorage.getItem("isAdmin") === "true";
@@ -103,11 +107,21 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time products
+  // Real-time products - UPDATED INITIALIZATION
   useEffect(() => { 
     const productsRef = collection(db, "products");
     const unsubscribe = onSnapshot(productsRef, snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = snapshot.docs.map(doc => {
+        const productData = doc.data();
+        return { 
+          id: doc.id, 
+          ...productData,
+          // CRITICAL INITIALIZATION: Combine old 'image' field with new 'images' array 
+          // into the 'images' field in state for the dynamic editor. 
+          // We no longer need to format it to a string.
+          images: productData.images || (productData.image ? [productData.image] : [])
+        };
+      });
       setProducts(data);
     });
     return () => unsubscribe();
@@ -124,13 +138,13 @@ export default function AdminDashboard() {
   }, []);
 
 
-  // --- MANAGEMENT HANDLERS (Functions passed down as props) ---
+  // --- MANAGEMENT HANDLERS ---
   const handleLogout = () => {
     localStorage.removeItem("isAdmin");
     navigate("/admin-login");
   };
 
-  // Order Management
+  // Order Management (Unchanged)
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       const orderRef = doc(db, "orders", orderId);
@@ -164,7 +178,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Promo Management
+  // Promo Management (Unchanged)
   const handleCreatePromo = async () => {
     if (!newPromo.code || !newPromo.discount) return alert("Enter code and discount");
     try {
@@ -197,26 +211,34 @@ export default function AdminDashboard() {
   };
 
   // Product Management
+  // This handler is now used to update the entire 'images' array from AdminProducts
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
   };
 
-  // 2. UPDATED: handleSaveProduct now includes 'inspiredBy'
+  // UPDATED: handleSaveProduct now uses the 'images' array directly
   const handleSaveProduct = async id => {
     try {
       const productRef = doc(db, "products", id);
       const product = products.find(p => p.id === id);
+      
+      // Filter out empty strings from the images array before saving to Firestore
+      const imagesToSave = (product.images || [])
+                                .filter(url => url && url.length > 0)
+                                .map(url => url.trim()); 
+
       await updateDoc(productRef, {
         title: product.title,
         subtitle: product.subtitle,
         price: parseFloat(product.price),
         stock: parseInt(product.stock),
-        image: product.image,
+        images: imagesToSave, // Saving the clean array of URLs
+        image: deleteField(), // CRITICAL FIX: Use deleteField() to remove the old 'image' field permanently
         description: product.description,
         for: product.for, 
-        inspiredBy: product.inspiredBy || "", // <-- ADDED FIELD
+        inspiredBy: product.inspiredBy || "", 
       });
       alert("Product updated successfully!");
     } catch (error) {
@@ -225,27 +247,36 @@ export default function AdminDashboard() {
     }
   };
 
-  // 3. UPDATED: handleAddProduct now clears 'inspiredBy'
+  // UPDATED: handleAddProduct now uses the newProduct.images array
   const handleAddProduct = async () => {
     if (!newProduct.title || !newProduct.price || !newProduct.for)
       return alert("Title, price, and 'For' field are required.");
       
     try {
+      // Filter out empty strings from the images array before saving to Firestore
+      const imagesToSave = (newProduct.images || [])
+                                .filter(url => url && url.length > 0)
+                                .map(url => url.trim()); 
+
       await addDoc(collection(db, "products"), {
-        ...newProduct,
+        // Spread the newProduct object, which contains the 'images' array
+        ...newProduct, 
         price: parseFloat(newProduct.price),
         stock: parseInt(newProduct.stock) || 0,
+        images: imagesToSave, // Saving the array to the 'images' field
+        // The old 'image' field is automatically excluded because it is not defined in newProduct state
       });
-      // Clear all fields, including the new one
+      
+      // Clear all fields
       setNewProduct({ 
         title: "", 
         subtitle: "", 
         price: "", 
         stock: "", 
-        image: "", 
+        images: [], // Clear back to an empty array for the next entry
         description: "", 
         for: "", 
-        inspiredBy: "", // <-- ADDED FIELD
+        inspiredBy: "", 
       });
     } catch (error) {
       console.error("Error adding product:", error);
@@ -263,7 +294,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Sample Management
+  // Sample Management (Unchanged)
   const handleSampleChange = (id, field, value) => {
     setSamples(prev => prev.map(s => (s.id === id ? { ...s, [field]: value } : s)));
   };

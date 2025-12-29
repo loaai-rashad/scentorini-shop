@@ -1,7 +1,7 @@
 // src/pages/DiscoverySetPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore'; // Import doc and getDoc
+import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore'; 
 import { db } from '../firebase'; 
 import LoadingScreen from '../components/LoadingScreen'; 
 import { useCart } from '../context/CartContext'; 
@@ -74,6 +74,24 @@ export default function DiscoverySetPage() {
     }, []);
 
     // 4. HELPER FUNCTIONS 
+    
+    // --- NEW HELPER: Get the primary image URL safely from product data ---
+    const getMainImageUrl = (data) => {
+        if (!data) return DEFAULT_FALLBACK_IMAGE;
+        
+        // 1. Check the new 'images' array first
+        if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+            return data.images[0];
+        }
+        
+        // 2. Check the legacy 'image' field as a fallback (though it should be deleted now)
+        if (data.image) {
+            return data.image;
+        }
+
+        return DEFAULT_FALLBACK_IMAGE;
+    }
+    // ----------------------------------------------------------------------
     
     const handleSelectionChange = (index, value) => {
         // ... (unchanged)
@@ -151,8 +169,8 @@ export default function DiscoverySetPage() {
             isCustomSet: true,
             selectedSamples: selectedSamplesData, 
             priceDetails: { count, averagePricePerItem: pricePerItem, total },
-            // USE THE IMAGE LINK FROM THE FETCHED DATA, FALLING BACK TO THE GENERIC IMAGE
-            image: discoverySetData?.image || DEFAULT_FALLBACK_IMAGE, 
+            // CRITICAL FIX: Use the new helper function to get the image URL
+            image: getMainImageUrl(discoverySetData), 
         };
 
         try {
@@ -175,8 +193,8 @@ export default function DiscoverySetPage() {
         return <div className="min-h-screen p-8">Error loading discovery set data.</div>;
     }
 
-    // Determine the image source using the same logic as your ProductPage.jsx
-    const imageSource = discoverySetData.image || DEFAULT_FALLBACK_IMAGE;
+    // CRITICAL FIX: Use the new helper function to determine the image source for rendering
+    const imageSource = getMainImageUrl(discoverySetData);
 
     return (
         <div className="container mx-auto p-8 max-w-4xl bg-white shadow-lg my-12 rounded-lg">
@@ -187,7 +205,7 @@ export default function DiscoverySetPage() {
             {/* --- STATIC MAIN IMAGE FOR THE SET PAGE (Uses fetched data) --- */}
             <div className="flex justify-center mb-8">
                 <img
-                    // Uses the fetched image URL
+                    // Uses the determined image URL
                     src={imageSource} 
                     alt={discoverySetData.title}
                     className="w-full max-w-xs h-auto object-cover rounded-lg shadow-xl border-2 border-gray-100"

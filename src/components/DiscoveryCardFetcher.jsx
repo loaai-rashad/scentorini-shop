@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ProductCard from './ProductCard'; // Import the reusable card component
-import LoadingScreen from './LoadingScreen'; // Assuming you have a loading component
+import LoadingScreen from '../components/LoadingScreen'; // Assuming you have a loading component
 
 // IMPORTANT: Use the same ID you were using in DiscoverySetPage.jsx
 const DISCOVERY_SET_PRODUCT_ID = 'oCD4raXzttsP44xAruut'; 
@@ -21,7 +21,20 @@ export default function DiscoveryCardFetcher() {
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setProductData({ id: docSnap.id, ...docSnap.data() });
+                    const data = docSnap.data();
+                    
+                    // CRITICAL FIX: Ensure 'images' array is correctly formed on load.
+                    const initialImages = 
+                        data.images && Array.isArray(data.images) && data.images.length > 0
+                            ? data.images
+                            // Fallback for documents still using the old 'image' field
+                            : (data.image ? [data.image] : []);
+
+                    setProductData({ 
+                        id: docSnap.id, 
+                        ...data,
+                        images: initialImages // Use the processed array
+                    });
                 } else {
                     console.error("Discovery Set main product not found.");
                 }
@@ -49,11 +62,13 @@ export default function DiscoveryCardFetcher() {
         );
     }
 
-    // Pass the fetched data directly to the ProductCard, just like a regular product
+    // Pass the fetched data directly to the ProductCard.
+    // NOTE: ProductCard now uses the 'images' prop to find its main image.
     return (
         <ProductCard
             id={productData.id}
-            image={productData.image || DEFAULT_FALLBACK_IMAGE}
+            // CRITICAL FIX: Pass the 'images' array instead of the defunct 'image' string.
+            images={productData.images || []} 
             title={productData.title || "Discovery Set Builder"}
             subtitle={productData.subtitle || "Custom Sample Set"}
             price={productData.price || 0.00}
