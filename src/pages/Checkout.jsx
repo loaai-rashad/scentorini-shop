@@ -8,11 +8,11 @@ import {
   doc,
   getDoc,
   updateDoc,
-  increment, // <-- ESSENTIAL for stock updates
+  increment, 
   query,
   where,
   getDocs,
-  writeBatch, // <-- ESSENTIAL for safe multi-document updates
+  writeBatch, 
 } from "firebase/firestore";
 import { db } from "../firebase";
 import emailjs from '@emailjs/browser';
@@ -26,12 +26,16 @@ export default function Checkout() {
   const { cart = [], clearCart } = useCart();
   const navigate = useNavigate();
 
+  // --- NEW STATE: Separating Name Fields ---
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  // The 'name' field in the form state will be assembled at submission time.
   const [form, setForm] = useState({
-    name: "",
+    // name: "", // Removed from initial state
     phone: "",
     governorate: "",
     address: "",
-    email: "", // Required for EmailJS
+    email: "", 
   });
   const [loading, setLoading] = useState(false);
   const [promoInput, setPromoInput] = useState("");
@@ -94,8 +98,11 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.name || !form.phone || !form.governorate || !form.address || !form.email) {
-      return alert("Please fill in all required fields (including email) before confirming.");
+    // --- FORM VALIDATION UPDATE ---
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+
+    if (!firstName.trim() || !lastName.trim() || !form.phone || !form.governorate || !form.address || !form.email) {
+      return alert("Please fill in all required fields (First Name, Last Name, Phone, Email, Governorate, Address) before confirming.");
     }
     if (!cart.length) return alert("Your cart is empty.");
 
@@ -220,7 +227,9 @@ export default function Checkout() {
 
       // Prepare final order document
       const orderData = {
-        customerName: form.name,
+        // --- BACKEND FIX: Use the combined full name ---
+        customerName: fullName, 
+        // ----------------------------------------------
         phoneNumber: form.phone,
         governorate: form.governorate,
         email: form.email,
@@ -243,7 +252,9 @@ export default function Checkout() {
 
       // 5. PREPARE EMAILJS PARAMETERS
       const templateParams = {
-        customer_name: form.name,
+        // --- BACKEND FIX: Use the combined full name ---
+        customer_name: fullName, 
+        // ----------------------------------------------
         customer_email: form.email, 
         order_id: orderId, 
         total: total.toFixed(2),
@@ -272,7 +283,7 @@ export default function Checkout() {
 
       // 7. Clear cart and navigate
       clearCart();
-      navigate("/confirmation", { state: { ...orderData, orderId, form } });
+      navigate("/confirmation", { state: { ...orderData, orderId, form: { ...form, name: fullName } } });
       
     } catch (error) {
       console.error("Error during checkout:", error);
@@ -300,21 +311,34 @@ export default function Checkout() {
 
 
   return (
-    // ... (rest of the return block remains unchanged) ...
     <div className="p-8 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold mb-6">Confirm Your Order</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
 
         {/* Customer Information Section */}
-        <input
-          type="text"
-          name="name"
-          placeholder="First Name & Last Name"
-          value={form.name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-          required
-        />
+        <div className="flex gap-4">
+            {/* First Name Field */}
+            <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-1/2 border p-2 rounded"
+                required
+            />
+            {/* Last Name Field */}
+            <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-1/2 border p-2 rounded"
+                required
+            />
+        </div>
+
         <input
           type="email"
           name="email"
