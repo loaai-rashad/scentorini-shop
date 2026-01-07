@@ -10,7 +10,7 @@ import {
   addDoc,
   deleteDoc,
   where,
-  deleteField, // <--- 1. NEW IMPORT (Kept)
+  deleteField, 
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
@@ -20,9 +20,6 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminProducts from '../components/admin/AdminProducts'; 
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
-
-// REMOVED: processImageUrls and formatImagesForInputOnLoad helpers are no longer needed, 
-// as AdminProducts now handles the array directly.
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -408,7 +405,11 @@ export default function AdminDashboard() {
 
   // Quick stats
   const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  // *************************************************************************
+  // *** CORRECTED LINE: CALCULATE TRUE REVENUE (Subtotal - Discount) ***
+  // We use subtotal and discount from the order object to exclude shipping cost.
+  const totalRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
+  // *************************************************************************
   const statusCounts = orders.reduce((acc, o) => {
     acc[o.status || "New"] = (acc[o.status || "New"] || 0) + 1;
     return acc;
@@ -435,7 +436,7 @@ export default function AdminDashboard() {
           <p className="text-2xl font-bold">{totalOrders}</p>
         </div>
         <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Revenue</h2>
+          <h2 className="text-gray-500 text-sm">Total Product Revenue</h2>
           <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
         </div>
         {statuses.map(status => (
