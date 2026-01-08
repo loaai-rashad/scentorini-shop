@@ -20,6 +20,7 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminProducts from '../components/admin/AdminProducts'; 
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
+import AdminInsights from '../components/admin/AdminInsights'; // <-- NEW: Import the Insights component
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -397,6 +398,8 @@ export default function AdminDashboard() {
                 togglePromoActive={togglePromoActive}
             />
         );
+      case 'insights': // <-- RENDER THE NEW IMPORTED COMPONENT
+        return <AdminInsights />;
       default:
         return null;
     }
@@ -455,6 +458,7 @@ export default function AdminDashboard() {
             { id: 'products', name: 'Products' },
             { id: 'samples', name: 'Samples' },
             { id: 'promos', name: 'Promo Codes' },
+            { id: 'insights', name: 'Insights' }, // <-- NEW TAB ADDED HERE
           ].map(tab => (
             <button
               key={tab.id}
