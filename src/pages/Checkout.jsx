@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import emailjs from '@emailjs/browser';
+import ReactGA from 'react-ga4'; // <-- NEW: GA4 Import
 
 
 const EMAILJS_SERVICE_ID = 'service_gl98ck9';
@@ -94,6 +95,28 @@ export default function Checkout() {
   const shippingCost = form.governorate === "Ismailia" ? 0 : 65; 
   const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
   const total = subtotal - discountAmount + shippingCost; 
+  
+  // --- GA4: Phase 2.1 - BEGIN CHECKOUT EVENT ---
+  useEffect(() => {
+    // Only fire if the cart has items
+    if (cart.length > 0) {
+        // Map cart items into the GA4 Enhanced E-commerce format
+        const ga4Items = cart.map(item => ({
+            item_id: item.id,
+            item_name: item.title,
+            price: item.price,
+            quantity: item.quantity,
+        }));
+
+        ReactGA.event('begin_checkout', {
+            currency: "EGP",
+            value: subtotal, 
+            items: ga4Items
+        });
+    }
+  }, [cart, subtotal]); // Dependencies ensure it re-fires if cart changes, which is safe.
+  // ---------------------------------------------
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -249,6 +272,33 @@ export default function Checkout() {
       // 4. SAVE ORDER AND RETRIEVE THE DOCUMENT REFERENCE
       const docRef = await addDoc(collection(db, "orders"), orderData);
       const orderId = docRef.id;
+
+      // ******************************************************
+      // *** START: CRITICAL GA4 PURCHASE EVENT (Phase 2.2) ***
+      // ******************************************************
+      
+      // Prepare the items array for the GA4 purchase event
+      const ga4Items = orderItems.map(item => ({
+          item_id: item.id,
+          item_name: item.title,
+          price: item.price,
+          quantity: item.quantity,
+      }));
+
+      ReactGA.event('purchase', {
+          transaction_id: orderId, // The unique Firestore ID
+          affiliation: "Online Store",
+          value: total, // Final total paid by customer (including shipping, as it's the transactional value)
+          shipping: shippingCost,
+          currency: "EGP", 
+          coupon: appliedPromo?.code || undefined, // Send promo code if used
+          items: ga4Items
+      });
+
+      // ******************************************************
+      // *** END: CRITICAL GA4 PURCHASE EVENT ***
+      // ******************************************************
+
 
       // 5. PREPARE EMAILJS PARAMETERS
       const templateParams = {

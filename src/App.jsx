@@ -1,5 +1,6 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react"; 
+import { Routes, Route, useLocation } from "react-router-dom"; 
+import ReactGA from 'react-ga4'; 
 
 // Standard Imports
 import Header from "./components/Header";
@@ -12,8 +13,7 @@ import ProductsList from "./components/ProductsList";
 import HomeProductFetcher from "./components/HomeProductFetcher"; 
 import ProductPage from "./pages/ProductPage";                   
 import DiscoverySetPage from "./pages/DiscoverySetPage";         
-// import ProductCard from "./components/ProductCard"; // <-- No longer needed here, as it's used inside DiscoveryCardFetcher
-import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; // <-- NEW: Component to fetch the Discovery Set data
+import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
 
 // Assuming these are imported correctly from your pages directory
 import Cart from "./pages/Cart";
@@ -23,6 +23,24 @@ import About from "./pages/About";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 
+// --- GA4 CONFIGURATION (Production Ready) ---
+const TRACKING_ID = "G-4RETXH072M"; // Your GA4 Measurement ID
+ReactGA.initialize(TRACKING_ID); // <-- DEBUG MODE REMOVED for deployment!
+// -------------------------------------
+
+
+// Helper component to track page views on route changes (Phase 1.3)
+function PageViewTracker() {
+    const location = useLocation();
+
+    useEffect(() => {
+        // Send a pageview event whenever the 'location' object changes (i.e., a route change)
+        ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+    }, [location]);
+
+    return null; // This component doesn't render anything visible
+}
+
 
 function App() {
   return (
@@ -30,6 +48,9 @@ function App() {
 
       <Header />
       <ScrollToTop />
+      
+      {/* The PageViewTracker component must be rendered within the router context */}
+      <PageViewTracker /> 
 
       <div className="flex-1">
         <Routes>
@@ -45,7 +66,6 @@ function App() {
                 <HomeProductFetcher /> 
                 
                 {/* --- NEW SECTION: Discovery Set Builder --- */}
-                {/* The card is now rendered by a separate, data-driven component */}
                 <section className="p-8 max-w-7xl mx-auto my-12">
                     <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
                         Design Your Experience
@@ -55,8 +75,6 @@ function App() {
                     </p>
 
                     <div className="flex justify-center">
-                        {/* This component fetches the image/title from Firestore 
-                            and renders the ProductCard, just like a regular product. */}
                         <DiscoveryCardFetcher />
                     </div>
                 </section>

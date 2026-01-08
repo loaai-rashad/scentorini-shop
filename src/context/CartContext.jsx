@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import ReactGA from 'react-ga4'; // <-- NEW: Import GA4
 
 const CartContext = createContext();
 
@@ -14,6 +15,23 @@ export function CartProvider({ children }) {
 
   // Add to cart
   const addToCart = (product) => {
+    
+    // --- GA4: Phase 3.1 - ADD TO CART EVENT ---
+    // Prepare item data for GA4 event
+    const ga4Item = {
+        item_id: product.id,
+        item_name: product.title,
+        price: product.price,
+        quantity: 1, // Always 1 for this click event
+    };
+
+    ReactGA.event('add_to_cart', {
+        currency: "EGP",
+        value: product.price, // Value of the single item added
+        items: [ga4Item]
+    });
+    // -------------------------------------------
+    
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
       if (existingItem) {

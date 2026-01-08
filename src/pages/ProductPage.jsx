@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import LoadingScreen from "../components/LoadingScreen"; 
+import ReactGA from 'react-ga4'; // <-- NEW: Import GA4
 
 // =========================================================
 // 1. ROBUST IMAGE VALIDATION HELPERS (CRITICAL FIX)
@@ -68,10 +69,32 @@ export default function ProductPage() {
           // CRITICAL STEP 2: Get the clean image array immediately after fetching
           const cleanImages = getCleanImages(productData);
 
-          setProduct({ ...productData, uniqueGalleryImages: cleanImages }); // Store clean array on state
+          const productWithImages = { ...productData, uniqueGalleryImages: cleanImages };
+
+          setProduct(productWithImages); // Store clean array on state
           
           // 3. INITIALIZE mainImage: Use the first CLEAN image, or fallback
           setMainImage(cleanImages[0] || "/perfume.jpeg");
+          
+          // ******************************************************
+          // *** START: GA4 VIEW ITEM EVENT (Phase 3.2) ***
+          // ******************************************************
+          ReactGA.event('view_item', {
+              currency: "EGP",
+              value: productWithImages.price, 
+              items: [{
+                  item_id: productWithImages.id,
+                  item_name: productWithImages.title,
+                  price: productWithImages.price,
+                  // Add category if available on productData
+                  // item_category: productData.category, 
+              }]
+          });
+          // ******************************************************
+          // *** END: GA4 VIEW ITEM EVENT ***
+          // ******************************************************
+
+
         } else {
           setProduct(null);
         }
