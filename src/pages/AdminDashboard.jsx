@@ -21,7 +21,7 @@ import AdminProducts from '../components/admin/AdminProducts';
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
 import AdminInsights from '../components/admin/AdminInsights'; 
-import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; // <-- NEW IMPORT
+import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; 
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -36,13 +36,12 @@ export default function AdminDashboard() {
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
   const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
   
-  // UPDATED: 'imageInput' is replaced with 'images' array for the creation form
   const [newProduct, setNewProduct] = useState({
     title: "", 
     subtitle: "", 
     price: "", 
     stock: "", 
-    images: [], // <-- KEY CHANGE: initialized as an array
+    images: [], 
     description: "", 
     for: "", 
     inspiredBy: "", 
@@ -106,7 +105,7 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time products - UPDATED INITIALIZATION
+  // Real-time products
   useEffect(() => { 
     const productsRef = collection(db, "products");
     const unsubscribe = onSnapshot(productsRef, snapshot => {
@@ -115,9 +114,6 @@ export default function AdminDashboard() {
         return { 
           id: doc.id, 
           ...productData,
-          // CRITICAL INITIALIZATION: Combine old 'image' field with new 'images' array 
-          // into the 'images' field in state for the dynamic editor. 
-          // We no longer need to format it to a string.
           images: productData.images || (productData.image ? [productData.image] : [])
         };
       });
@@ -209,21 +205,18 @@ export default function AdminDashboard() {
     }
   };
 
-  // Product Management
-  // This handler is now used to update the entire 'images' array from AdminProducts
+  // Product Management (Unchanged logic, just maintaining structure)
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
   };
 
-  // UPDATED: handleSaveProduct now uses the 'images' array directly
   const handleSaveProduct = async id => {
     try {
       const productRef = doc(db, "products", id);
       const product = products.find(p => p.id === id);
       
-      // Filter out empty strings from the images array before saving to Firestore
       const imagesToSave = (product.images || [])
                                 .filter(url => url && url.length > 0)
                                 .map(url => url.trim()); 
@@ -233,8 +226,8 @@ export default function AdminDashboard() {
         subtitle: product.subtitle,
         price: parseFloat(product.price),
         stock: parseInt(product.stock),
-        images: imagesToSave, // Saving the clean array of URLs
-        image: deleteField(), // CRITICAL FIX: Use deleteField() to remove the old 'image' field permanently
+        images: imagesToSave, 
+        image: deleteField(), 
         description: product.description,
         for: product.for, 
         inspiredBy: product.inspiredBy || "", 
@@ -246,33 +239,28 @@ export default function AdminDashboard() {
     }
   };
 
-  // UPDATED: handleAddProduct now uses the newProduct.images array
   const handleAddProduct = async () => {
     if (!newProduct.title || !newProduct.price || !newProduct.for)
       return alert("Title, price, and 'For' field are required.");
       
     try {
-      // Filter out empty strings from the images array before saving to Firestore
       const imagesToSave = (newProduct.images || [])
                                 .filter(url => url && url.length > 0)
                                 .map(url => url.trim()); 
 
       await addDoc(collection(db, "products"), {
-        // Spread the newProduct object, which contains the 'images' array
         ...newProduct, 
         price: parseFloat(newProduct.price),
         stock: parseInt(newProduct.stock) || 0,
-        images: imagesToSave, // Saving the array to the 'images' field
-        // The old 'image' field is automatically excluded because it is not defined in newProduct state
+        images: imagesToSave, 
       });
       
-      // Clear all fields
       setNewProduct({ 
         title: "", 
         subtitle: "", 
         price: "", 
         stock: "", 
-        images: [], // Clear back to an empty array for the next entry
+        images: [], 
         description: "", 
         for: "", 
         inspiredBy: "", 
@@ -293,7 +281,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Sample Management (Unchanged)
+  // Sample Management (Unchanged logic, just maintaining structure)
   const handleSampleChange = (id, field, value) => {
     setSamples(prev => prev.map(s => (s.id === id ? { ...s, [field]: value } : s)));
   };
@@ -402,7 +390,7 @@ export default function AdminDashboard() {
       case 'insights': 
         return <AdminInsights />;
         
-      case 'sections': // <-- NEW CASE FOR CUSTOM SECTIONS
+      case 'sections': 
         return <AdminCustomizableSections />;
         
       default:
@@ -413,11 +401,15 @@ export default function AdminDashboard() {
 
   // Quick stats
   const totalOrders = orders.length;
-  // *************************************************************************
-  // *** CORRECTED LINE: CALCULATE TRUE REVENUE (Subtotal - Discount) ***
-  // We use subtotal and discount from the order object to exclude shipping cost.
-  const totalRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
-  // *************************************************************************
+  
+  // 1. Total Product Revenue (Excluding Shipping)
+  // Calculated as: Subtotal - Discount
+  const totalProductRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
+  
+  // 2. Total Sales (Including Shipping)
+  // FIX APPLIED: Using o.total (the field saved by checkout) instead of the incorrect o.totalAmount
+  const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  
   const statusCounts = orders.reduce((acc, o) => {
     acc[o.status || "New"] = (acc[o.status || "New"] || 0) + 1;
     return acc;
@@ -437,25 +429,35 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Quick Stats (Remain visible on all tabs) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {/* Quick Stats - UPDATED grid to md:grid-cols-5 for the 6 total cards (1 order, 2 revenue, 3 status) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6"> 
         <div className="p-4 bg-white shadow rounded">
           <h2 className="text-gray-500 text-sm">Total Orders</h2>
           <p className="text-2xl font-bold">{totalOrders}</p>
         </div>
+        
+        {/* Total Product Revenue (Excl. Shipping) */}
         <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Product Revenue</h2>
-          <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
+          <h2 className="text-gray-500 text-sm">Product Revenue (Excl. Shipping)</h2>
+          <p className="text-2xl font-bold">${totalProductRevenue.toFixed(2)}</p>
         </div>
+        
+        {/* Total Sales (Incl. Shipping) - THIS NOW USES o.total */}
+        <div className="p-4 bg-white shadow rounded">
+          <h2 className="text-gray-500 text-sm">Total Sales (Incl. Shipping)</h2> 
+          <p className="text-2xl font-bold">${totalSales.toFixed(2)}</p>
+        </div>
+        
+        {/* Status Counts - 4 columns remain, ensuring they all fit */}
         {statuses.map(status => (
-          <div key={status} className={`p-4 shadow rounded ${statusColors[status]}`}>
-            <h2 className="text-gray-500 text-sm">{status} Orders</h2>
+          <div key={status} className={`p-4 shadow rounded ${statusColors[status]} col-span-1`}> 
+            <h2 className="text-gray-500 text-sm whitespace-nowrap">{status} Orders</h2>
             <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
           </div>
         ))}
       </div>
       
-      {/* --- TAB NAVIGATION (FIXED FOR SCROLLING) --- */}
+      {/* --- TAB NAVIGATION --- */}
       <div className="border-b border-gray-200 overflow-x-auto">
         <nav className="-mb-px flex space-x-8">
           {[
