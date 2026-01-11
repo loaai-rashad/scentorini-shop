@@ -1,6 +1,8 @@
-import React, { useEffect } from "react"; 
+import React, { useEffect, useState } from "react"; 
 import { Routes, Route, useLocation } from "react-router-dom"; 
 import ReactGA from 'react-ga4'; 
+import { collection, query, getDocs, orderBy } from "firebase/firestore"; 
+import { db } from './firebase'; 
 
 // Standard Imports
 import Header from "./components/Header";
@@ -8,12 +10,13 @@ import Carousel from "./components/Carousel";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 
-// Page/Component Imports
+// Component Imports
 import ProductsList from "./components/ProductsList";             
 import HomeProductFetcher from "./components/HomeProductFetcher"; 
 import ProductPage from "./pages/ProductPage";                   
 import DiscoverySetPage from "./pages/DiscoverySetPage";         
 import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
+import CustomProductSection from "./components/CustomProductSection"; 
 
 // Assuming these are imported correctly from your pages directory
 import Cart from "./pages/Cart";
@@ -25,7 +28,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 // --- GA4 CONFIGURATION (Production Ready) ---
 const TRACKING_ID = "G-4RETXH072M"; // Your GA4 Measurement ID
-ReactGA.initialize(TRACKING_ID); // <-- DEBUG MODE REMOVED for deployment!
+ReactGA.initialize(TRACKING_ID); 
 // -------------------------------------
 
 
@@ -34,22 +37,43 @@ function PageViewTracker() {
     const location = useLocation();
 
     useEffect(() => {
-        // Send a pageview event whenever the 'location' object changes (i.e., a route change)
         ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
     }, [location]);
 
-    return null; // This component doesn't render anything visible
+    return null; 
 }
 
 
 function App() {
+  const [customSections, setCustomSections] = useState([]); 
+
+  useEffect(() => {
+    const fetchSections = async () => {
+        try {
+            const sectionsRef = collection(db, "customizableSections");
+            const q = query(sectionsRef, orderBy("order", "asc")); 
+            const snapshot = await getDocs(q);
+            
+            const sectionsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                productIds: doc.data().productIds || [], 
+            }));
+            
+            setCustomSections(sectionsData);
+        } catch (error) {
+            console.error("Error fetching homepage sections configuration:", error);
+        }
+    };
+
+    fetchSections();
+  }, []); 
+    
   return (
     <div className="flex flex-col min-h-screen">
 
       <Header />
       <ScrollToTop />
-      
-      {/* The PageViewTracker component must be rendered within the router context */}
       <PageViewTracker /> 
 
       <div className="flex-1">
@@ -62,10 +86,21 @@ function App() {
               <>
                 <Carousel />
                 
-                {/* 1. Renders the main product collection slider (Discovery Set is now filtered OUT here) */}
+                {/* ---------------------------------------------------- */}
+                {/* 1. SCENTORINI COLLECTION (Oils/Main Collection) */}
                 <HomeProductFetcher /> 
+                {/* ---------------------------------------------------- */}
+
+                {/* 💥 FINAL PLACEMENT IS HERE: RIGHT AFTER HOMEPRODUCTFETCHER 💥 */}
                 
-                {/* --- NEW SECTION: Discovery Set Builder --- */}
+                {/* 2. CUSTOMIZABLE SECTIONS (e.g., "bundle" section) */}
+                {customSections.map(section => (
+                    <CustomProductSection key={section.id} sectionConfig={section} />
+                ))}
+                
+                {/* ---------------------------------------------------- */}
+                
+                {/* 3. DISCOVERY SET BUILDER (Remains at the bottom) */}
                 <section className="p-8 max-w-7xl mx-auto my-12">
                     <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
                         Design Your Experience
@@ -78,21 +113,14 @@ function App() {
                         <DiscoveryCardFetcher />
                     </div>
                 </section>
-                {/* ------------------------------------------ */}
               </>
             }
           />
           
-          {/* 2. FILTERED PRODUCTS PAGE Route */}
+          {/* ... (Other Routes) ... */}
           <Route path="/products" element={<ProductsList />} />
-          
-          {/* 3. DISCOVERY SET BUILDER Route */}
           <Route path="/testers/builder" element={<DiscoverySetPage />} /> 
-
-          {/* 4. INDIVIDUAL PRODUCT PAGE Route */}
           <Route path="/products/:id" element={<ProductPage />} />
-
-          {/* 5. Other Routes */}
           <Route path="/about" element={<About />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

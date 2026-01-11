@@ -20,7 +20,8 @@ import AdminOrders from '../components/admin/AdminOrders';
 import AdminProducts from '../components/admin/AdminProducts'; 
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
-import AdminInsights from '../components/admin/AdminInsights'; // <-- NEW: Import the Insights component
+import AdminInsights from '../components/admin/AdminInsights'; 
+import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; // <-- NEW IMPORT
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -398,8 +399,12 @@ export default function AdminDashboard() {
                 togglePromoActive={togglePromoActive}
             />
         );
-      case 'insights': // <-- RENDER THE NEW IMPORTED COMPONENT
+      case 'insights': 
         return <AdminInsights />;
+        
+      case 'sections': // <-- NEW CASE FOR CUSTOM SECTIONS
+        return <AdminCustomizableSections />;
+        
       default:
         return null;
     }
@@ -450,15 +455,16 @@ export default function AdminDashboard() {
         ))}
       </div>
       
-      {/* --- TAB NAVIGATION --- */}
-      <div className="border-b border-gray-200">
+      {/* --- TAB NAVIGATION (FIXED FOR SCROLLING) --- */}
+      <div className="border-b border-gray-200 overflow-x-auto">
         <nav className="-mb-px flex space-x-8">
           {[
             { id: 'orders', name: 'Orders' },
             { id: 'products', name: 'Products' },
             { id: 'samples', name: 'Samples' },
             { id: 'promos', name: 'Promo Codes' },
-            { id: 'insights', name: 'Insights' }, // <-- NEW TAB ADDED HERE
+            { id: 'insights', name: 'Insights' }, 
+            { id: 'sections', name: 'Custom Sections' }, 
           ].map(tab => (
             <button
               key={tab.id}
