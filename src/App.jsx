@@ -91,7 +91,7 @@ function App() {
                 <HomeProductFetcher /> 
                 {/* ---------------------------------------------------- */}
 
-                {/* 💥 FINAL PLACEMENT IS HERE: RIGHT AFTER HOMEPRODUCTFETCHER 💥 */}
+                
                 
                 {/* 2. CUSTOMIZABLE SECTIONS (e.g., "bundle" section) */}
                 {customSections.map(section => (
@@ -101,7 +101,7 @@ function App() {
                 {/* ---------------------------------------------------- */}
                 
                 {/* 3. DISCOVERY SET BUILDER (Remains at the bottom) */}
-                <section className="p-8 max-w-7xl mx-auto my-12">
+                <section className="p-4 max-w-7xl mx-auto my-6">
                     <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
                         Design Your Experience
                     </h2>

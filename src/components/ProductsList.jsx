@@ -14,6 +14,7 @@ export default function ProductsList() {
     const [searchParams] = useSearchParams();
     const genderFilter = searchParams.get('gender'); 
     
+    // Using your Bold Archivo style for the title
     const pageTitle = genderFilter 
         ? `Scentorini for ${genderFilter}` 
         : 'Scentorini Collection';
@@ -26,42 +27,53 @@ export default function ProductsList() {
                 let productsQuery;
                 
                 let requiredTags = []; 
-
                 const filterValue = genderFilter ? genderFilter.toLowerCase() : null;
 
-                // --- 1. Determine the required tags for filtering ---
+                // 1. Tags for filtering
                 if (filterValue === "him") {
-                    // For Him: Only includes 'him' and 'unisex'
-                    requiredTags = ["him", "Him", "unisex", "Unisex"]; 
+                    requiredTags = ["him", "Him", "unisex", "Unisex", "oil", "Oil", "tester", "Tester"]; 
                 } else if (filterValue === "her") {
-                    // For Her: Includes 'her', 'unisex', 'oil', AND 'tester' <--- CORRECTED
                     requiredTags = ["her", "Her", "unisex", "Unisex", "oil", "Oil", "tester", "Tester"]; 
                 } 
                 
-                // --- 2. Construct the Firestore Query using 'where' with 'in' ---
                 if (requiredTags.length > 0) {
-                    productsQuery = query(
-                        productsRef, 
-                        // The 'in' operator now checks if the single string 'for' matches any of the tags
-                        where("for", "in", requiredTags) 
-                    );
+                    productsQuery = query(productsRef, where("for", "in", requiredTags));
                 } else {
-                    // Fallback: If no filter is present, fetch all products
                     productsQuery = productsRef;
                 }
 
                 const snapshot = await getDocs(productsQuery);
                 
-                // --- 3. UPDATED: Remove the blanket exclusion filter ---
-                // We no longer need to filter out 'tester' products here,
-                // because the Firestore query now handles which 'for' values are included.
-                // Since 'tester' is only included in the 'her' filter, it will only show up there.
-                const productsData = snapshot.docs
-                    .map(doc => ({
-                        id: doc.id,
-                        ...doc.data(),
-                    })); // Removed the .filter() chain
-                
+                let productsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+
+                // =========================================================
+                // 2. CUSTOM PRIORITY SORTING LOGIC
+                // =========================================================
+                // We assign a numerical "weight" to each type. Lower number = shows up first.
+                const getPriority = (forValue) => {
+                    const val = String(forValue).toLowerCase();
+                    
+                    // Priority 1: Exact Gender Matches
+                    if (val === filterValue) return 1;
+                    
+                    // Priority 2: Unisex items
+                    if (val === "unisex") return 2;
+                    
+                    // Priority 3: Perfume Oils
+                    if (val === "oil") return 3;
+                    
+                    // Priority 4: Tester Sets
+                    if (val === "tester") return 4;
+                    
+                    return 5; // Everything else
+                };
+
+                productsData.sort((a, b) => getPriority(a.for) - getPriority(b.for));
+                // =========================================================
+
                 setProducts(productsData);
 
             } catch (error) {
@@ -74,17 +86,19 @@ export default function ProductsList() {
         fetchProducts();
     }, [genderFilter]); 
     
-    
     if (loading) return <LoadingScreen />;
     
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-8 text-center">{pageTitle}</h1>
+        <div className="p-8 max-w-7xl mx-auto min-h-screen">
+            {/* Header styled with your Archivo Black look */}
+            <h1 className="text-4xl font-archivo font-black uppercase tracking-tighter text-[#1C3C85] mb-12 text-center">
+                {pageTitle}
+            </h1>
             
             <ProductGroup products={products} />
 
             {products.length === 0 && (
-                <p className="text-center text-gray-500 mt-10">
+                <p className="text-center text-gray-500 mt-10 font-medium">
                     We're currently updating our collection for {genderFilter || 'this category'}. Check back soon!
                 </p>
             )}

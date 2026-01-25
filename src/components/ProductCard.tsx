@@ -1,11 +1,9 @@
 // src/components/ProductCard.jsx
-
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 
 export default function ProductCard({
   id,
-  // 1. KEY CHANGE: Accept 'images' array instead of single 'image' string
   images, 
   title,
   subtitle,
@@ -15,82 +13,62 @@ export default function ProductCard({
   className = "",
 }) {
   
-  // 2. NEW LOGIC: Determine the main image URL from the array
-  const mainImageUrl = (images && images.length > 0) 
-    ? images[0] 
-    : "/perfume.jpeg"; // Fallback if array is empty
+  // LOGIC: Image Selection
+  const mainImageUrl = (images && images.length > 0) ? images[0] : "/perfume.jpeg"; 
 
-  // 3. Logic remains unchanged
-  const isTester = 
-    productFor && 
-    String(productFor).toLowerCase() === 'tester';
-
-  // 4. Path remains unchanged
-  const path = isTester 
-    ? `/testers/builder`    
-    : `/products/${id}`;    
+  // LOGIC: Product Type Identification
+  const isTester = productFor && String(productFor).toLowerCase() === 'tester';
+  
+  // LOGIC: Routing Path Determination
+  const path = isTester ? `/testers/builder` : `/products/${id}`;    
 
   return (
-    // 5. Link remains unchanged
-    <Link to={path} className="w-full">
+    <Link to={path} className="w-full block h-full"> 
+      {/* LOGIC: 'flex-col h-full' forces uniform card heights */}
       <Card
-        className={`overflow-hidden bg-white cursor-pointer transition ${className}`}
+        className={`flex flex-col h-full overflow-hidden rounded-2xl border-none shadow-sm bg-white cursor-pointer transition hover:shadow-md ${className}`}
       >
-        {/* Product Image */}
-        <div className="w-full 
-             h-64 sm:h-72 md:h-80 lg:h-96 xl:h-96 
-             bg-gray-100 flex items-center justify-center relative">
+        {/* Image Section - Fixed Aspect Ratio */}
+        <div className="w-full h-64 sm:h-72 md:h-80 bg-gray-100 flex items-center justify-center relative overflow-hidden flex-shrink-0">
           <img
-            // 6. CRITICAL FIX: Use the calculated mainImageUrl
             src={mainImageUrl}
             alt={title}
             className="w-full h-full object-cover" 
           />
 
-          {/* Out of Stock Badge (Positioning is clean) */}
+          {/* LOGIC: Conditional Badges */}
           {stock === 0 && (
-            <span className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+            <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase">
               Out of Stock
-            </span>
-          )}
-
-          {/* Tester Badge (Positioning is clean) */}
-          {isTester && (
-             <span className="absolute top-3 right-3 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-              Tester Set
             </span>
           )}
         </div>
 
-        {/* Product Details - Mimicking the detached Title/Price structure */}
-        <div className="p-2 pt-3 flex justify-between items-start">
+        {/* Details Section - 'flex-grow' ensures the bottom row aligns */}
+        <div className="p-4 flex flex-col justify-between flex-grow">
             
-          {/* Left Side: Title and Subtitle */}
-          <div className="flex flex-col items-start pr-4">
-            <h3 className="text-lg font-bold tracking-tight text-stone-900 uppercase">
-              {title}
-              {isTester && " Builder"} 
+          <div className="mb-2">
+            {/* LOGIC: 'line-clamp' prevents height jumps from long titles */}
+            <h3 className="text-sm md:text-base font-bold text-stone-900 uppercase line-clamp-1">
+              {title}{isTester && " Builder"} 
             </h3>
-            <p className="text-stone-500 text-sm tracking-wide mt-1">
+            <p className="text-stone-500 text-xs mt-1 line-clamp-1">
                 {subtitle}
             </p>
           </div>
 
-          {/* Right Side: Price / Status */}
-          {stock > 0 ? (
-            // Price Display
-            <div className="text-right">
-              <span className="text-xl font-extrabold text-stone-900 whitespace-nowrap">
-                {/* Dynamically adjust prefix based on product type */}
-                {isTester ? `Start from EGP${price.toFixed(2)}` : `EGP${price.toFixed(2)}`}
+          {/* LOGIC: Conditional Price/Availability Display */}
+          <div className="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
+            {stock > 0 ? (
+              <span className="text-sm md:text-base font-extrabold text-[#1C3C85]">
+                {isTester ? `From EGP ${price}` : `EGP ${price.toLocaleString()}`}
               </span>
-            </div>
-          ) : (
-            // Currently Unavailable Status
-            <div className="text-right text-red-600 font-semibold text-sm whitespace-nowrap pt-2">
+            ) : (
+              <span className="text-red-600 font-bold text-xs uppercase">
                 Unavailable
-            </div>
-          )}
+              </span>
+            )}
+          </div>
         </div>
       </Card>
     </Link>

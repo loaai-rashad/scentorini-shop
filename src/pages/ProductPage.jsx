@@ -4,44 +4,25 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import LoadingScreen from "../components/LoadingScreen"; 
-import ReactGA from 'react-ga4'; // <-- NEW: Import GA4
+import ReactGA from 'react-ga4';
 
 // =========================================================
-// 1. ROBUST IMAGE VALIDATION HELPERS (CRITICAL FIX)
+// 1. IMAGE VALIDATION HELPERS
 // =========================================================
 
-// Helper to check if a URL is valid (must start with http/https or /)
 const isValidImageUrl = (url) => {
     if (!url || typeof url !== 'string' || url.length < 5) return false;
-    
-    // Check for standard web links or local paths
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-        return true;
-    }
-    
-    // Explicitly reject short, incomplete data URI fragments (like "data:image/jpeg;base64:1")
-    if (url.startsWith('data:image/')) {
-        // A valid Base64 image is very long. We assume short ones (under 500 chars) are corrupt fragments.
-        return url.length > 500; 
-    }
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) return true;
+    if (url.startsWith('data:image/')) return url.length > 500; 
     return false;
 };
 
-// Function to process product data and return a clean, unique array of valid image URLs
 const getCleanImages = (productData) => {
-    // Start with the new 'images' array
     let images = (productData.images && Array.isArray(productData.images) ? productData.images : []);
-    
-    // Fallback/Legacy check for the old single 'image' field
     if (productData.image && !images.includes(productData.image)) {
-        // Add the old single image to the front if it's not already in the array
         images.unshift(productData.image); 
     }
-    
-    // Filter the entire list using the validator
     const validUrls = images.filter(url => isValidImageUrl(url));
-    
-    // Ensure uniqueness
     return [...new Set(validUrls)];
 };
 
@@ -53,8 +34,6 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState(false);
-  
-  // 1. NEW STATE: To control the currently displayed image
   const [mainImage, setMainImage] = useState(""); 
 
   useEffect(() => {
@@ -65,20 +44,12 @@ export default function ProductPage() {
 
         if (docSnap.exists()) {
           const productData = { id: docSnap.id, ...docSnap.data() };
-          
-          // CRITICAL STEP 2: Get the clean image array immediately after fetching
           const cleanImages = getCleanImages(productData);
-
           const productWithImages = { ...productData, uniqueGalleryImages: cleanImages };
 
-          setProduct(productWithImages); // Store clean array on state
-          
-          // 3. INITIALIZE mainImage: Use the first CLEAN image, or fallback
+          setProduct(productWithImages);
           setMainImage(cleanImages[0] || "/perfume.jpeg");
           
-          // ******************************************************
-          // *** START: GA4 VIEW ITEM EVENT (Phase 3.2) ***
-          // ******************************************************
           ReactGA.event('view_item', {
               currency: "EGP",
               value: productWithImages.price, 
@@ -86,15 +57,8 @@ export default function ProductPage() {
                   item_id: productWithImages.id,
                   item_name: productWithImages.title,
                   price: productWithImages.price,
-                  // Add category if available on productData
-                  // item_category: productData.category, 
               }]
           });
-          // ******************************************************
-          // *** END: GA4 VIEW ITEM EVENT ***
-          // ******************************************************
-
-
         } else {
           setProduct(null);
         }
@@ -115,114 +79,125 @@ export default function ProductPage() {
     setTimeout(() => setShowToast(false), 2000);
   };
 
+  // Helper for Stock Bar Width
+  const getStockPercentage = (stock) => {
+    const MAX_URGENCY = 10;
+    if (stock <= 0) return 0;
+    if (stock >= MAX_URGENCY) return 100;
+    return (stock / MAX_URGENCY) * 100;
+  };
 
   if (loading) return <LoadingScreen />;
-  if (!product) return <div className="min-h-screen p-8">Product not found</div>;
+  if (!product) return <div className="min-h-screen p-8 text-center font-bold">Product not found</div>;
 
-  // Use the pre-cleaned array from state
   const uniqueGalleryImages = product.uniqueGalleryImages || [];
-  
-  // Fallback check for mainImage state
   const currentMainImage = mainImage || uniqueGalleryImages[0] || "/perfume.jpeg";
 
-
   return (
-    <div className="min-h-screen p-8 flex flex-col md:flex-row gap-8 relative max-w-6xl mx-auto">
+    <div className="min-h-screen p-6 md:p-12 flex flex-col md:flex-row gap-10 relative max-w-7xl mx-auto">
       
-      {/* === START OF IMAGE GALLERY CONTAINER === */}
-      <div 
-        className="
-          flex-shrink-0 
-          w-full md:w-1/2 lg:w-1/3 
-          flex flex-col gap-4 
-          md:sticky md:top-8 md:self-start
-        "
-      >
-        {/* Main Product Image */}
-        <div 
-          className="
-            h-[28rem] md:h-[36rem] 
-            overflow-hidden shadow-lg rounded-lg
-          "
-        >
+      {/* LEFT: IMAGE GALLERY */}
+      <div className="w-full md:w-1/2 lg:w-[45%] flex flex-col gap-4 md:sticky md:top-8 md:self-start">
+        <div className="aspect-[4/5] overflow-hidden shadow-xl rounded-2xl bg-gray-50">
           <img
-            src={currentMainImage} // GUARANTEED to be a valid URL or the default path
+            src={currentMainImage}
             alt={product.title}
-            className="w-full h-full object-cover transition duration-300" 
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" 
           />
         </div>
 
-        {/* Thumbnail Gallery Strip */}
         {uniqueGalleryImages.length > 1 && (
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
             {uniqueGalleryImages.map((imgUrl, index) => (
               <button
                 key={index}
-                onClick={() => setMainImage(imgUrl)} // Handler to switch main image
-                className={`
-                  flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 transition
-                  ${imgUrl === currentMainImage 
-                    ? 'border-[#1C3C85] shadow-md' 
-                    : 'border-transparent hover:border-stone-300'
-                  }
+                onClick={() => setMainImage(imgUrl)}
+                className={`flex-shrink-0 w-20 h-24 rounded-xl overflow-hidden border-2 transition-all
+                  ${imgUrl === currentMainImage ? 'border-[#1C3C85] scale-105 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}
                 `}
               >
-                <img
-                  src={imgUrl} // GUARANTEED to be a valid URL
-                  alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
         )}
       </div>
-      {/* === END OF IMAGE GALLERY CONTAINER === */}
 
-
-      {/* Product Details (Now occupies remaining width) */}
-      <div className="flex-1 flex flex-col gap-4">
-        <h1 className="text-3xl font-bold">{product.title}</h1>
-        <p className="text-stone-500">{product.subtitle}</p>
+      {/* RIGHT: PRODUCT INFO */}
+      <div className="flex-1 flex flex-col gap-6 py-2">
+        <div className="border-b border-gray-100 pb-4">
+            <h1 className="text-4xl font-black font-archivo uppercase tracking-tighter text-[#1C3C85]">
+                {product.title}
+            </h1>
+            <p className="text-lg text-stone-500 font-medium mt-1">{product.subtitle}</p>
+        </div>
         
-        {/* --- Display the Inspired By field (No Change) --- */}
         {product.inspiredBy && (
-            <p className="text-md font-medium text-stone-700 p-2 border-l-4 border-stone-300 bg-stone-50">
-                Inspired by: <span className="font-semibold text-stone-900">{product.inspiredBy}</span>
-            </p>
+            <div className="bg-stone-50 border-l-4 border-[#1C3C85] p-3 rounded-r-lg">
+                <p className="text-sm font-medium text-stone-600">
+                    Inspired by: <span className="font-bold text-stone-900">{product.inspiredBy}</span>
+                </p>
+            </div>
         )}
-        {/* ------------------------------------------- */}
 
-        <p className="text-2xl font-semibold text-stone-900">
-          EGP{product.price.toFixed(2)}
-        </p>
-        
-        {/* === ADD TO CART BUTTON (No Change) === */}
-        {product.stock > 0 ? (
-          <button
-            className="bg-[#1C3C85] text-white py-2 px-4 rounded hover:bg-blue-700 transition" 
-            onClick={() => handleAddToCart(product)}
-          >
-            Add to Cart
-          </button>
-        ) : (
-          <button
-            className="bg-gray-400 text-white py-2 px-4 rounded cursor-not-allowed"
-            disabled
-          >
-            Out of Stock
-          </button>
+        <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-black text-stone-900">EGP {product.price.toLocaleString()}</span>
+        </div>
+
+        {/* --- STOCK URGENCY SECTION --- */}
+        {product.stock > 0 && product.stock <= 10 && (
+          <div className="space-y-3 bg-red-50/50 p-4 rounded-xl border border-red-100">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+              </span>
+              <p className="text-sm font-bold text-stone-800 uppercase tracking-wide">
+                Hurry! Only <span className="text-red-600">{product.stock} items</span> left in stock
+              </p>
+            </div>
+            
+            <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+              <div 
+                className="h-full bg-gradient-to-r from-red-500 to-red-700 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${getStockPercentage(product.stock)}%` }}
+              ></div>
+            </div>
+          </div>
         )}
-        {/* ======================================= */}
         
-        {/* The Description now follows the button */}
-        <p className="text-stone-700">{product.description}</p>
+        {/* ADD TO CART ACTION */}
+        <div className="flex flex-col gap-3 mt-2">
+            {product.stock > 0 ? (
+                <button
+                    className="w-full bg-[#1C3C85] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-[#142d63] transition-all transform active:scale-95 shadow-lg" 
+                    onClick={() => handleAddToCart(product)}
+                >
+                    Add to Cart
+                </button>
+            ) : (
+                <button
+                    className="w-full bg-gray-300 text-gray-500 py-4 rounded-xl font-bold uppercase cursor-not-allowed"
+                    disabled
+                >
+                    Out of Stock
+                </button>
+            )}
+        </div>
+        
+        {/* --- DESCRIPTION SECTION WITH LINE BREAK SUPPORT --- */}
+        <div className="mt-4 border-t border-gray-50 pt-4">
+            <h4 className="font-bold uppercase text-xs tracking-widest text-stone-400 mb-2">Description</h4>
+            <div className="text-stone-700 leading-relaxed text-md whitespace-pre-wrap">
+                {product.description}
+            </div>
+        </div>
       </div>
 
-      {/* Toast Notification (Unchanged) */}
+      {/* TOAST NOTIFICATION */}
       {showToast && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-6 py-3 rounded shadow-lg z-50 animate-slide-down">
-          Item added to cart!
+        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-8 py-4 rounded-2xl shadow-2xl z-50 animate-bounce font-bold uppercase tracking-wider">
+          Added to your bag!
         </div>
       )}
     </div>

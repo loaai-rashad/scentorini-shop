@@ -1,5 +1,3 @@
-// src/components/HorizontalProductSlider.jsx
-
 import React from 'react';
 import ProductCard from './ProductCard'; 
 
@@ -12,31 +10,29 @@ export default function HorizontalProductSlider({ title, products }) {
   const PADDING_CLASSES = "px-4 sm:px-8 lg:px-12"; 
 
   return (
-    <section className="mt-12 mb-16"> 
+    <section className="my-4"> {/* Reduced from mt-12 mb-16 */}
       
-      {/* 2. Group Heading - ENSURE MONTSERRAT BOLD IS APPLIED HERE */}
+      {/* Group Heading - Reduced bottom margin to mb-4 */}
       <h2 
-        className={`
-          text-3xl 
-          font-bold          
-          text-center 
-          mb-10 
-          tracking-widest 
-          border-b 
-          pb-2 
-          ${PADDING_CLASSES}
-        `}
-        // --- CRITICAL FIX: Explicitly set the font family ---
-        style={{ fontFamily: 'Montserrat, sans-serif' }}
-      >
-        {title}
-      </h2>
+  className={`
+    text-2xl 
+    font-archivo 
+    font-black 
+    uppercase 
+    text-center 
+    mb-6 
+    tracking-tighter 
+    text-[#1C3C85]  /* 👈 Added the specific blue from your other titles */
+    pb-4 
+    ${PADDING_CLASSES}
+  `}
+>
+  {title}
+</h2>
 
-      {/* HORIZONTAL SCROLLING CONTAINER WRAPPER (Rest of code is unchanged) */}
+      {/* HORIZONTAL SCROLLING CONTAINER */}
       <div 
-        className="
-          overflow-x-scroll 
-        "
+        className="overflow-x-scroll"
         style={{ 
           WebkitOverflowScrolling: 'touch',
           MsOverflowStyle: 'none',
@@ -63,7 +59,8 @@ export default function HorizontalProductSlider({ title, products }) {
         </div>
       </div>
       
-      <hr className={`mt-16 mx-auto w-3/4 border-gray-200 ${PADDING_CLASSES}`} />
+      {/* Separator Line - Reduced top margin to mt-6 */}
+      <hr className={`mt-6 mx-auto w-3/4 border-gray-200 ${PADDING_CLASSES}`} />
     </section>
   );
 }
