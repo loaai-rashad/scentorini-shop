@@ -21,10 +21,7 @@ export default function Footer() {
             About
           </a>
 
-          {/* Admin link */}
-          <a href="/admin-login" className="hover:underline text-gray-300">
-            Admin
-          </a>
+         
         </div>
 
         {/* Contact Info */}
