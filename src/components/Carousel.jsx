@@ -5,7 +5,7 @@ export default function HeroBanner() {
   const navigate = useNavigate(); 
   
 
-  const imagePath = "/images/background.jpeg"; 
+  const imagePath = "/images/val.jpeg"; 
 
   const handleFilterNavigation = (gender) => {
     navigate(`/products?gender=${gender}`); 
@@ -39,7 +39,7 @@ export default function HeroBanner() {
         >
             
             <h2 className="text-3xl md:text-5xl font-montserrat bold text-white mb-8 drop-shadow-lg text-center">
-                Find Your Signature Scent
+                
             </h2>
 
             <div className="flex space-x-4">
