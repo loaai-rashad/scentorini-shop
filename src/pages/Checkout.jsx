@@ -92,7 +92,7 @@ export default function Checkout() {
   // Totals calculation (Retained)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   // Assuming shipping is 65 EGP, or 0 for Ismailia
-  const shippingCost = form.governorate === "Ismailia" ? 0 : 65; 
+  const shippingCost = form.governorate === "Ismailia" ? 0 : 75; 
   const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
   const total = subtotal - discountAmount + shippingCost; 
   
@@ -421,7 +421,7 @@ export default function Checkout() {
           ))}
         </select>
         <p className="text-sm text-gray-500 mt-1">
-          Shipping is 65 EGP all over Egypt, free in Ismailia.
+          Shipping is 75 EGP all over Egypt, free in Ismailia.
         </p>
 
         <textarea
