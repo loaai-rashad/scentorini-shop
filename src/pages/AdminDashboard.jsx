@@ -22,6 +22,7 @@ import AdminSamples from '../components/admin/AdminSamples';
 import AdminPromos from '../components/admin/AdminPromos';    
 import AdminInsights from '../components/admin/AdminInsights'; 
 import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; 
+import AdminReviews from '../components/admin/AdminReviews'; // <--- ADD THIS IMPORT
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -205,7 +206,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Product Management (Unchanged logic, just maintaining structure)
+  // Product Management
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
@@ -281,7 +282,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Sample Management (Unchanged logic, just maintaining structure)
+  // Sample Management
   const handleSampleChange = (id, field, value) => {
     setSamples(prev => prev.map(s => (s.id === id ? { ...s, [field]: value } : s)));
   };
@@ -392,6 +393,9 @@ export default function AdminDashboard() {
         
       case 'sections': 
         return <AdminCustomizableSections />;
+
+      case 'reviews': // <--- ADD THIS CASE
+        return <AdminReviews />;
         
       default:
         return null;
@@ -401,13 +405,7 @@ export default function AdminDashboard() {
 
   // Quick stats
   const totalOrders = orders.length;
-  
-  // 1. Total Product Revenue (Excluding Shipping)
-  // Calculated as: Subtotal - Discount
   const totalProductRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
-  
-  // 2. Total Sales (Including Shipping)
-  // FIX APPLIED: Using o.total (the field saved by checkout) instead of the incorrect o.totalAmount
   const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   
   const statusCounts = orders.reduce((acc, o) => {
@@ -429,26 +427,22 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Quick Stats - UPDATED grid to md:grid-cols-5 for the 6 total cards (1 order, 2 revenue, 3 status) */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6"> 
         <div className="p-4 bg-white shadow rounded">
           <h2 className="text-gray-500 text-sm">Total Orders</h2>
           <p className="text-2xl font-bold">{totalOrders}</p>
         </div>
         
-        {/* Total Product Revenue (Excl. Shipping) */}
         <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Product Revenue (Excl. Shipping)</h2>
+          <h2 className="text-gray-500 text-sm">Product Revenue</h2>
           <p className="text-2xl font-bold">${totalProductRevenue.toFixed(2)}</p>
         </div>
         
-        {/* Total Sales (Incl. Shipping) - THIS NOW USES o.total */}
         <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Sales (Incl. Shipping)</h2> 
+          <h2 className="text-gray-500 text-sm">Total Sales</h2> 
           <p className="text-2xl font-bold">${totalSales.toFixed(2)}</p>
         </div>
         
-        {/* Status Counts - 4 columns remain, ensuring they all fit */}
         {statuses.map(status => (
           <div key={status} className={`p-4 shadow rounded ${statusColors[status]} col-span-1`}> 
             <h2 className="text-gray-500 text-sm whitespace-nowrap">{status} Orders</h2>
@@ -467,6 +461,7 @@ export default function AdminDashboard() {
             { id: 'promos', name: 'Promo Codes' },
             { id: 'insights', name: 'Insights' }, 
             { id: 'sections', name: 'Custom Sections' }, 
+            { id: 'reviews', name: 'Reviews' }, // <--- ADD THIS TAB
           ].map(tab => (
             <button
               key={tab.id}
@@ -485,7 +480,6 @@ export default function AdminDashboard() {
         </nav>
       </div>
       
-      {/* --- RENDER ACTIVE TAB CONTENT --- */}
       <div className="mt-6">
           {renderContent()}
       </div>

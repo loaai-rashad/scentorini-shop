@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"; 
 import { Routes, Route, useLocation } from "react-router-dom"; 
 import ReactGA from 'react-ga4'; 
-import { collection, query, getDocs, orderBy } from "firebase/firestore"; 
+import { collection, query, getDocs, orderBy, onSnapshot } from "firebase/firestore"; 
 import { db } from './firebase'; 
 
 // Standard Imports
@@ -18,6 +18,10 @@ import DiscoverySetPage from "./pages/DiscoverySetPage";
 import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
 import CustomProductSection from "./components/CustomProductSection"; 
 
+// --- NEW REVIEW COMPONENTS ---
+import ReviewSlider from "./components/ReviewSlider";
+import ReviewModal from "./components/ReviewModal";
+
 // Assuming these are imported correctly from your pages directory
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -26,26 +30,22 @@ import About from "./pages/About";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 
-// --- GA4 CONFIGURATION (Production Ready) ---
-const TRACKING_ID = "G-4RETXH072M"; // Your GA4 Measurement ID
+// --- GA4 CONFIGURATION ---
+const TRACKING_ID = "G-4RETXH072M";
 ReactGA.initialize(TRACKING_ID); 
-// -------------------------------------
 
-
-// Helper component to track page views on route changes (Phase 1.3)
 function PageViewTracker() {
     const location = useLocation();
-
     useEffect(() => {
         ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
     }, [location]);
-
     return null; 
 }
 
-
 function App() {
   const [customSections, setCustomSections] = useState([]); 
+  const [reviews, setReviews] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchSections = async () => {
@@ -53,20 +53,29 @@ function App() {
             const sectionsRef = collection(db, "customizableSections");
             const q = query(sectionsRef, orderBy("order", "asc")); 
             const snapshot = await getDocs(q);
-            
             const sectionsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 productIds: doc.data().productIds || [], 
             }));
-            
             setCustomSections(sectionsData);
         } catch (error) {
-            console.error("Error fetching homepage sections configuration:", error);
+            console.error("Error fetching homepage sections:", error);
         }
     };
 
+    // This query fetches ALL reviews so we can see the product tags on the home page
+    const qReviews = query(collection(db, "reviews"), orderBy("createdAt", "desc"));
+    const unsubscribeReviews = onSnapshot(qReviews, (snapshot) => {
+        const reviewsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setReviews(reviewsData);
+    });
+
     fetchSections();
+    return () => unsubscribeReviews();
   }, []); 
     
   return (
@@ -86,21 +95,13 @@ function App() {
               <>
                 <Carousel />
                 
-                {/* ---------------------------------------------------- */}
-                {/* 1. SCENTORINI COLLECTION (Oils/Main Collection) */}
                 <HomeProductFetcher /> 
-                {/* ---------------------------------------------------- */}
-
                 
-                
-                {/* 2. CUSTOMIZABLE SECTIONS (e.g., "bundle" section) */}
                 {customSections.map(section => (
                     <CustomProductSection key={section.id} sectionConfig={section} />
                 ))}
                 
-                {/* ---------------------------------------------------- */}
-                
-                {/* 3. DISCOVERY SET BUILDER (Remains at the bottom) */}
+                {/* 3. DISCOVERY SET BUILDER */}
                 <section className="p-4 max-w-7xl mx-auto my-6">
                     <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
                         Design Your Experience
@@ -113,11 +114,29 @@ function App() {
                         <DiscoveryCardFetcher />
                     </div>
                 </section>
+
+                {/* --- REVIEWS SECTION --- */}
+                <ReviewSlider title="Customer Stories" reviews={reviews} />
+                <div className="flex justify-center mb-12">
+                    <button 
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-8 py-3 border-2 border-[#1C3C85] text-[#1C3C85] font-archivo font-black uppercase tracking-widest rounded-full hover:bg-[#1C3C85] hover:text-white transition-all transform hover:-translate-y-1"
+                    >
+                        Write a Review
+                    </button>
+                </div>
+
+                {/* REVIEW MODAL (Pass 'general' as the ID for homepage reviews) */}
+                <ReviewModal 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)} 
+                    productId="general"
+                    productTitle=""
+                />
               </>
             }
           />
           
-          {/* ... (Other Routes) ... */}
           <Route path="/products" element={<ProductsList />} />
           <Route path="/testers/builder" element={<DiscoverySetPage />} /> 
           <Route path="/products/:id" element={<ProductPage />} />

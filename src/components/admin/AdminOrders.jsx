@@ -1,5 +1,4 @@
 // src/components/admin/AdminOrders.jsx
-
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 
@@ -31,7 +30,6 @@ export default function AdminOrders({
         <div className="p-4 bg-white rounded shadow">
             <h2 className="text-xl font-black font-archivo uppercase mb-4 text-[#1C3C85]">Manage Orders</h2>
             
-            {/* The 'overflow-x-auto' wrapper allows the table to scroll if it's wider than the screen */}
             <div className="overflow-x-auto border rounded-lg">
                 <table className="min-w-full table-auto border-collapse">
                     <thead className="bg-gray-100 font-archivo text-[10px] uppercase tracking-widest text-gray-600">
@@ -41,14 +39,14 @@ export default function AdminOrders({
                             <th className="p-4 text-left border-b whitespace-nowrap">Customer</th>
                             <th className="p-4 text-left border-b whitespace-nowrap">Phone</th>
                             <th className="p-4 text-left border-b whitespace-nowrap">Governorate</th>
-                            <th className="p-4 text-left border-b min-w-[250px]">Full Address</th> {/* Increased width for address */}
+                            <th className="p-4 text-left border-b min-w-[250px]">Full Address</th>
                             <th className="p-4 text-left border-b">Items</th>
                             <th className="p-4 text-left border-b">Payment</th> 
                             <th className="p-4 text-left border-b">Payer Phone</th>        
                             <th className="p-4 text-left border-b">Total</th>
                             <th className="p-4 text-left border-b">Status</th>
                             <th className="p-4 text-left border-b">Promo</th>
-                            <th className="p-4 text-left border-b">Actions</th>
+                            <th className="p-4 text-left border-b text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="text-sm">
@@ -56,26 +54,12 @@ export default function AdminOrders({
                             const currentStatus = order.status || "New";
                             return (
                                 <tr key={order.id} className="hover:bg-blue-50/30 border-b transition-colors">
-                                    {/* Order ID: Removed truncation to show full ID */}
-                                    <td className="p-4 font-mono text-[11px] text-gray-600 break-all select-all">
-                                        {order.id}
-                                    </td>
-                                    
-                                    <td className="p-4 whitespace-nowrap text-gray-700">
-                                        {formatDate(order.createdAt)} 
-                                    </td>
-                                    
+                                    <td className="p-4 font-mono text-[11px] text-gray-600 break-all select-all">{order.id}</td>
+                                    <td className="p-4 whitespace-nowrap text-gray-700">{formatDate(order.createdAt)}</td>
                                     <td className="p-4 font-bold whitespace-nowrap">{order.customerName || "—"}</td>
-                                    
                                     <td className="p-4 whitespace-nowrap">{order.phoneNumber || "—"}</td>
-                                    
                                     <td className="p-4 font-medium uppercase text-xs">{order.governorate || "—"}</td>
-                                    
-                                    {/* Address: whitespace-pre-wrap ensures it wraps to multiple lines if long */}
-                                    <td className="p-4 text-xs leading-relaxed whitespace-pre-wrap min-w-[200px]">
-                                        {order.address || "—"}
-                                    </td>
-                                    
+                                    <td className="p-4 text-xs leading-relaxed whitespace-pre-wrap min-w-[200px]">{order.address || "—"}</td>
                                     <td className="p-4 min-w-[180px]">
                                         {order.items?.map((item, idx) => (
                                             <div key={idx} className="mb-2 text-[11px] border-b border-gray-100 last:border-0 pb-1">
@@ -89,19 +73,9 @@ export default function AdminOrders({
                                             </div>
                                         )) || "—"}
                                     </td>
-                                    
-                                    <td className="p-4 text-xs font-bold text-gray-500">
-                                        {order.paymentMethod || "COD"}
-                                    </td>
-                                    
-                                    <td className="p-4 text-xs font-mono">
-                                        {order.instapayPhone || "—"}
-                                    </td>
-                                    
-                                    <td className="p-4 font-black text-[#1C3C85] whitespace-nowrap">
-                                        EGP {order.total?.toLocaleString() || "0.00"}
-                                    </td>
-
+                                    <td className="p-4 text-xs font-bold text-gray-500">{order.paymentMethod || "COD"}</td>
+                                    <td className="p-4 text-xs font-mono">{order.instapayPhone || "—"}</td>
+                                    <td className="p-4 font-black text-[#1C3C85] whitespace-nowrap">EGP {order.total?.toLocaleString() || "0.00"}</td>
                                     <td className="p-4 relative">
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === order.id ? null : order.id)}
@@ -123,7 +97,6 @@ export default function AdminOrders({
                                             </div>
                                         )}
                                     </td>
-
                                     <td className="p-4">
                                         <select
                                             value={order.promoCode || ""}
@@ -132,14 +105,11 @@ export default function AdminOrders({
                                         >
                                             <option value="">None</option>
                                             {promoCodes.map(promo => (
-                                                <option key={promo.id} value={promo.code}>
-                                                    {promo.code}
-                                                </option>
+                                                <option key={promo.id} value={promo.code}>{promo.code}</option>
                                             ))}
                                         </select>
                                     </td>
-
-                                    <td className="p-4">
+                                    <td className="p-4 text-right">
                                         <button
                                             onClick={() => {
                                                 if(window.confirm("Are you sure you want to delete this order?")) {
