@@ -33,9 +33,9 @@ const Header = () => {
     <div className="flex-1">
       <Link to="/">
       <img
-  src="/images/ramadaan.jpeg" 
+  src="/images/scentorinilogoo.jpeg" 
   alt="Scentorini Logo"
-  className="h-16 w-auto object-contain transform scale-110" 
+  className="h-9 w-auto object-contain transform scale-110" 
 />
       </Link>
     </div>

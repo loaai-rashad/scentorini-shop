@@ -421,7 +421,7 @@ export default function Checkout() {
           ))}
         </select>
         <p className="text-sm text-gray-500 mt-1">
-          Shipping is 75 EGP all over Egypt, free in Ismailia.
+          Shipping is 75 EGP all over Egypt, 30 in Ismailia.
         </p>
 
         <textarea
