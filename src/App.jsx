@@ -16,7 +16,7 @@ import ProductPage from "./pages/ProductPage";
 import DiscoverySetPage from "./pages/DiscoverySetPage";         
 import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
 import CustomProductSection from "./components/CustomProductSection"; 
-
+import AnnouncementBar from "./components/AnnouncementBar.jsx"
 // --- REVIEW COMPONENTS ---
 import ReviewSlider from "./components/ReviewSlider";
 import ReviewModal from "./components/ReviewModal";
@@ -81,6 +81,7 @@ function App() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
+      <AnnouncementBar />
       <ScrollToTop />
       <PageViewTracker /> 
 
