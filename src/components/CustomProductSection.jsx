@@ -69,11 +69,11 @@ export default function CustomProductSection({ sectionConfig }) {
   // Renders the section with title and product cards
   return (
     <section className="p-8 max-w-7xl mx-auto my-12">
-      <h2 className="text-3xl font-montserrat bold font-bold text-[#1C3C85] text-center mb-6">
-        {title}
-      </h2>
+      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-6 whitespace-nowrap">
+  {title}
+</h2>
       
-      {/* 💥 DYNAMIC CENTERING LOGIC HERE 💥 */}
+      {/*  DYNAMIC CENTERING LOGIC HERE  */}
       <div 
         className={`
           flex gap-6 pb-4
