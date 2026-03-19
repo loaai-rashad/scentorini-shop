@@ -1,9 +1,8 @@
-// src/components/CustomProductSection.jsx
-
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ProductCard from './ProductCard'; 
+import { motion } from 'framer-motion'; // 1. Added Framer Motion
 
 export default function CustomProductSection({ sectionConfig }) {
   const [products, setProducts] = useState([]);
@@ -11,7 +10,6 @@ export default function CustomProductSection({ sectionConfig }) {
   
   const { title, productIds } = sectionConfig; 
   
-  // Logic to fetch products from Firestore based on IDs (this remains robust)
   useEffect(() => {
     if (!productIds || productIds.length === 0) {
       setProducts([]);
@@ -32,7 +30,6 @@ export default function CustomProductSection({ sectionConfig }) {
               return { 
                   id: snap.id, 
                   ...data,
-                  // Ensure data integrity for ProductCard
                   images: data.images || (data.image ? [data.image] : []),
                   stock: data.stock !== undefined ? data.stock : 0, 
                   title: data.title || "Untitled Product", 
@@ -66,20 +63,26 @@ export default function CustomProductSection({ sectionConfig }) {
     return null; 
   }
   
-  // Renders the section with title and product cards
   return (
-    <section className="p-8 max-w-7xl mx-auto my-12">
-      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-6 whitespace-nowrap">
-  {title}
-</h2>
+    // 2. Wrap section in motion.section for the scroll reveal
+    <motion.section 
+      initial={{ opacity: 0, y: 30 }} // Start invisible and slightly below
+      whileInView={{ opacity: 1, y: 0 }} // Animate to full visibility and original position
+      viewport={{ once: true, amount: 0.1 }} // Trigger once when 10% of the section is visible
+      transition={{ duration: 0.6, ease: "easeOut" }} // Smooth transition timing
+      className="p-8 max-w-7xl mx-auto my-12"
+    >
+      {/* Title fixed to one line and responsive size */}
+      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-10 whitespace-nowrap">
+        {title}
+      </h2>
       
-      {/*  DYNAMIC CENTERING LOGIC HERE  */}
       <div 
         className={`
           flex gap-6 pb-4
           ${products.length === 1 
-            ? 'justify-center' // If only one product, center the flex container
-            : 'overflow-x-auto custom-scrollbar' // If multiple, use scroll
+            ? 'justify-center' 
+            : 'overflow-x-auto custom-scrollbar' 
           }
         `}
       >
@@ -88,7 +91,6 @@ export default function CustomProductSection({ sectionConfig }) {
             key={product.id} 
             className="flex-shrink-0 w-64" 
           > 
-            {/* Pass individual props for compatibility with existing ProductCard.jsx */}
             <ProductCard 
                 id={product.id}
                 images={product.images}
@@ -102,7 +104,6 @@ export default function CustomProductSection({ sectionConfig }) {
         ))}
       </div>
       
-      {/* Scrollbar styling for aesthetic consistency */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           height: 8px;
@@ -116,6 +117,6 @@ export default function CustomProductSection({ sectionConfig }) {
           scrollbar-color: #ddd transparent; 
         }
       `}</style>
-    </section>
+    </motion.section>
   );
 }
