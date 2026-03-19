@@ -5,7 +5,7 @@ export default function HeroBanner() {
   const navigate = useNavigate(); 
   
 
-  const imagePath = "/images/ramadancover.jpeg"; 
+  const imagePath = "/images/eid.jpeg"; 
 
   const handleFilterNavigation = (gender) => {
     navigate(`/products?gender=${gender}`); 
