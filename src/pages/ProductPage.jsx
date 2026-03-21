@@ -10,10 +10,6 @@ import ReactGA from 'react-ga4';
 import ReviewSlider from "../components/ReviewSlider";
 import ReviewModal from "../components/ReviewModal";
 
-// =========================================================
-// 1. IMAGE VALIDATION HELPERS
-// =========================================================
-
 const isValidImageUrl = (url) => {
     if (!url || typeof url !== 'string' || url.length < 5) return false;
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) return true;
@@ -30,8 +26,6 @@ const getCleanImages = (productData) => {
     return [...new Set(validUrls)];
 };
 
-// =========================================================
-
 export default function ProductPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
@@ -39,8 +33,7 @@ export default function ProductPage() {
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState(false);
   const [mainImage, setMainImage] = useState(""); 
-
-  // --- REVIEW STATES ---
+  const [selectedSize, setSelectedSize] = useState(null); // Default to null to show Base Price
   const [reviews, setReviews] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -57,14 +50,17 @@ export default function ProductPage() {
 
           setProduct(productWithImages);
           setMainImage(cleanImages[0] || "/perfume.jpeg");
+
+          // FIXED: Removed the auto-selection of the first size option.
+          // This ensures the "Base Price" shows on initial page load.
           
           ReactGA.event('view_item', {
               currency: "EGP",
-              value: productWithImages.price, 
+              value: Number(productData.price) || 0, 
               items: [{
-                  item_id: productWithImages.id,
-                  item_name: productWithImages.title,
-                  price: productWithImages.price,
+                  item_id: productData.id,
+                  item_name: productData.title,
+                  price: Number(productData.price) || 0,
               }]
           });
         }
@@ -75,7 +71,6 @@ export default function ProductPage() {
       }
     };
 
-    // --- REAL-TIME REVIEW LISTENER (Filtered by Product ID) ---
     const q = query(
         collection(db, "reviews"), 
         where("productId", "==", id), 
@@ -88,20 +83,32 @@ export default function ProductPage() {
     });
 
     fetchProductData();
-    return () => unsubscribe(); // Cleanup listener
+    return () => unsubscribe();
   }, [id]);
 
-  const handleAddToCart = (product) => {
-    addToCart(product);
+  const handleAddToCart = () => {
+    // If a size is selected, use that price; otherwise, use the base product price.
+    const finalPrice = selectedSize ? Number(selectedSize.price) : Number(product.price);
+    const finalSizeLabel = selectedSize ? selectedSize.size : (product.subtitle || "Standard");
+
+    const cartItem = {
+      ...product,
+      price: finalPrice || 0,
+      selectedSize: finalSizeLabel,
+      cartItemId: `${product.id}-${finalSizeLabel}`
+    };
+    
+    addToCart(cartItem);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
 
   const getStockPercentage = (stock) => {
     const MAX_URGENCY = 10;
-    if (stock <= 0) return 0;
-    if (stock >= MAX_URGENCY) return 100;
-    return (stock / MAX_URGENCY) * 100;
+    const s = Number(stock) || 0;
+    if (s <= 0) return 0;
+    if (s >= MAX_URGENCY) return 100;
+    return (s / MAX_URGENCY) * 100;
   };
 
   if (loading) return <LoadingScreen />;
@@ -109,6 +116,11 @@ export default function ProductPage() {
 
   const uniqueGalleryImages = product.uniqueGalleryImages || [];
   const currentMainImage = mainImage || uniqueGalleryImages[0] || "/perfume.jpeg";
+
+  // LOGIC: Use the selected size price if available, otherwise fallback to the base price.
+  const displayedPrice = selectedSize?.price 
+    ? Number(selectedSize.price) 
+    : (Number(product.price) || 0);
 
   return (
     <div className="min-h-screen">
@@ -158,9 +170,48 @@ export default function ProductPage() {
               </div>
           )}
 
+          {/* DYNAMIC PRICE DISPLAY */}
           <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-stone-900">EGP {product.price.toLocaleString()}</span>
+              <span className="text-3xl font-black text-stone-900">
+                EGP {displayedPrice.toLocaleString()}
+              </span>
           </div>
+
+          {/* SIZE SELECTOR */}
+          {product.sizeOptions && Array.isArray(product.sizeOptions) && product.sizeOptions.length > 0 && (
+            <div className="mt-2">
+              <h4 className="font-bold uppercase text-[10px] tracking-widest text-stone-400 mb-3">Select Size</h4>
+              <div className="flex flex-wrap gap-2">
+                {/* Optional: Add a "Base" button if you want users to be able to toggle back */}
+                <button
+                    onClick={() => setSelectedSize(null)}
+                    className={`px-6 py-2 rounded-full border-2 text-sm font-bold transition-all
+                      ${!selectedSize 
+                        ? 'border-[#1C3C85] bg-[#1C3C85] text-white shadow-md' 
+                        : 'border-gray-200 text-stone-600 hover:border-[#1C3C85]'
+                      }
+                    `}
+                >
+                    {product.subtitle || "Standard"}
+                </button>
+
+                {product.sizeOptions.map((opt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedSize(opt)}
+                    className={`px-6 py-2 rounded-full border-2 text-sm font-bold transition-all
+                      ${selectedSize?.size === opt.size 
+                        ? 'border-[#1C3C85] bg-[#1C3C85] text-white shadow-md' 
+                        : 'border-gray-200 text-stone-600 hover:border-[#1C3C85]'
+                      }
+                    `}
+                  >
+                    {opt.size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {product.stock > 0 && product.stock <= 10 && (
             <div className="space-y-3 bg-red-50/50 p-4 rounded-xl border border-red-100">
@@ -184,10 +235,10 @@ export default function ProductPage() {
           )}
           
           <div className="flex flex-col gap-3 mt-2">
-              {product.stock > 0 ? (
+              {Number(product.stock) > 0 ? (
                   <button
                       className="w-full bg-[#1C3C85] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-[#142d63] transition-all transform active:scale-95 shadow-lg" 
-                      onClick={() => handleAddToCart(product)}
+                      onClick={handleAddToCart}
                   >
                       Add to Cart
                   </button>
@@ -210,10 +261,9 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* --- SEPARATE REVIEWS SECTION --- */}
+      {/* Review Sections */}
       <div className="max-w-7xl mx-auto mt-12 border-t border-gray-100 pt-12 pb-20">
         <ReviewSlider title={`Reviews for ${product.title}`} reviews={reviews} />
-        
         <div className="flex justify-center mt-10">
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -224,15 +274,13 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* REVIEW MODAL */}
       <ReviewModal 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
           productId={id} 
-          productTitle={product.title} // <-- ADD THIS to pass the name to the modal
+          productTitle={product.title}
       />
 
-      {/* TOAST NOTIFICATION */}
       {showToast && (
         <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-8 py-4 rounded-2xl shadow-2xl z-50 animate-bounce font-bold uppercase tracking-wider">
           Added to your bag!

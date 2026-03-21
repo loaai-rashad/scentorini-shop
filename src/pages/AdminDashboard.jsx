@@ -6,8 +6,8 @@ import {
   orderBy,
   query,
   doc,
-  getDoc, // Added getDoc for initial fetch
-  setDoc, // Added setDoc for saving settings
+  getDoc,
+  setDoc,
   updateDoc,
   addDoc,
   deleteDoc,
@@ -33,15 +33,10 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [samples, setSamples] = useState([]);
   
-  // Announcement Bar State
   const [announcement, setAnnouncement] = useState({ text: '', enabled: false });
-
-  // NEW: Hero Banner State
   const [heroSettings, setHeroSettings] = useState({ imageUrl: '', active: true });
-  
   const [activeTab, setActiveTab] = useState('orders'); 
   
-  // States for creation forms
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
   const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
   
@@ -54,13 +49,13 @@ export default function AdminDashboard() {
     description: "", 
     for: "", 
     inspiredBy: "", 
+    sizeOptions: [] 
   });
 
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
   const navigate = useNavigate();
 
-  // --- CONSTANTS ---
   const statuses = ["New", "Packed", "Shipped", "Delivered"];
   const statusColors = {
     New: "bg-white text-gray-800 border border-gray-300",
@@ -69,22 +64,17 @@ export default function AdminDashboard() {
     Delivered: "bg-green-200 text-green-800",
   };
 
-  // --- DATA FETCHING ---
-  // Security check
   useEffect(() => { 
     const isAdmin = localStorage.getItem("isAdmin") === "true";
     if (!isAdmin) navigate("/admin-login");
   }, [navigate]);
 
-  // Fetch Announcement & Hero Settings
   useEffect(() => {
     const fetchSettings = async () => {
-        // Fetch Announcement
         const annRef = doc(db, "siteSettings", "announcement");
         const annSnap = await getDoc(annRef);
         if (annSnap.exists()) setAnnouncement(annSnap.data());
 
-        // NEW: Fetch Hero Settings
         const heroRef = doc(db, "siteSettings", "hero");
         const heroSnap = await getDoc(heroRef);
         if (heroSnap.exists()) setHeroSettings(heroSnap.data());
@@ -92,7 +82,6 @@ export default function AdminDashboard() {
     fetchSettings();
   }, []);
 
-  // Fetch promos once
   useEffect(() => { 
     const fetchPromoCodes = async () => {
         try {
@@ -107,7 +96,6 @@ export default function AdminDashboard() {
     fetchPromoCodes();
   }, []);
 
-  // Real-time orders
   useEffect(() => { 
     const ordersRef = collection(db, "orders");
     const q = query(ordersRef, orderBy("createdAt", "desc"));
@@ -130,7 +118,6 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time products
   useEffect(() => { 
     const productsRef = collection(db, "products");
     const unsubscribe = onSnapshot(productsRef, snapshot => {
@@ -139,7 +126,8 @@ export default function AdminDashboard() {
         return { 
           id: doc.id, 
           ...productData,
-          images: productData.images || (productData.image ? [productData.image] : [])
+          images: productData.images || (productData.image ? [productData.image] : []),
+          sizeOptions: productData.sizeOptions || [] 
         };
       });
       setProducts(data);
@@ -147,7 +135,6 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
   
-  // Real-time samples
   useEffect(() => { 
     const samplesRef = collection(db, "samples");
     const unsubscribe = onSnapshot(samplesRef, snapshot => {
@@ -157,14 +144,11 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-
-  // --- MANAGEMENT HANDLERS ---
   const handleLogout = () => {
     localStorage.removeItem("isAdmin");
     navigate("/admin-login");
   };
 
-  // Announcement Handler
   const handleSaveAnnouncement = async () => {
     try {
         const docRef = doc(db, "siteSettings", "announcement");
@@ -176,7 +160,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // NEW: Hero Settings Handler
   const handleSaveHero = async () => {
     try {
         const docRef = doc(db, "siteSettings", "hero");
@@ -188,7 +171,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Order Management
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       const orderRef = doc(db, "orders", orderId);
@@ -222,7 +204,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Promo Management
   const handleCreatePromo = async () => {
     if (!newPromo.code || !newPromo.discount) return alert("Enter code and discount");
     try {
@@ -253,28 +234,35 @@ export default function AdminDashboard() {
     }
   };
 
-  // Product Management
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
     );
   };
 
+  // FIXED: Logic to handle structured sizeOptions and numeric prices safely
   const handleSaveProduct = async id => {
     try {
       const productRef = doc(db, "products", id);
       const product = products.find(p => p.id === id);
       const imagesToSave = (product.images || []).filter(url => url && url.length > 0).map(url => url.trim()); 
+      
+      const cleanedSizes = (product.sizeOptions || []).map(opt => ({
+        size: opt.size || "",
+        price: parseFloat(opt.price) || 0
+      }));
+
       await updateDoc(productRef, {
         title: product.title,
         subtitle: product.subtitle,
-        price: parseFloat(product.price),
-        stock: parseInt(product.stock),
+        price: parseFloat(product.price) || 0,
+        stock: parseInt(product.stock) || 0,
         images: imagesToSave, 
         image: deleteField(), 
         description: product.description,
         for: product.for, 
         inspiredBy: product.inspiredBy || "", 
+        sizeOptions: cleanedSizes 
       });
       alert("Product updated successfully!");
     } catch (error) {
@@ -283,18 +271,38 @@ export default function AdminDashboard() {
     }
   };
 
+  // FIXED: Logic to handle structured sizeOptions during creation safely
   const handleAddProduct = async () => {
-    if (!newProduct.title || !newProduct.price || !newProduct.for)
-      return alert("Title, price, and 'For' field are required.");
+    if (!newProduct.title || !newProduct.for)
+      return alert("Title and 'For' field are required.");
     try {
       const imagesToSave = (newProduct.images || []).filter(url => url && url.length > 0).map(url => url.trim()); 
+      
+      const cleanedSizes = (newProduct.sizeOptions || []).map(opt => ({
+        size: opt.size || "",
+        price: parseFloat(opt.price) || 0
+      }));
+
       await addDoc(collection(db, "products"), {
         ...newProduct, 
-        price: parseFloat(newProduct.price),
+        price: parseFloat(newProduct.price) || 0,
         stock: parseInt(newProduct.stock) || 0,
         images: imagesToSave, 
+        sizeOptions: cleanedSizes 
       });
-      setNewProduct({ title: "", subtitle: "", price: "", stock: "", images: [], description: "", for: "", inspiredBy: "" });
+      
+      setNewProduct({ 
+        title: "", 
+        subtitle: "", 
+        price: "", 
+        stock: "", 
+        images: [], 
+        description: "", 
+        for: "", 
+        inspiredBy: "", 
+        sizeOptions: [] 
+      });
+      alert("Product added successfully!");
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Failed to add product.");
@@ -311,7 +319,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Sample Management
   const handleSampleChange = (id, field, value) => {
     setSamples(prev => prev.map(s => (s.id === id ? { ...s, [field]: value } : s)));
   };
@@ -322,8 +329,8 @@ export default function AdminDashboard() {
       const sample = samples.find(s => s.id === id);
       await updateDoc(sampleRef, {
         title: sample.title,
-        price: parseFloat(sample.price),
-        stock: parseInt(sample.stock),
+        price: parseFloat(sample.price) || 0,
+        stock: parseInt(sample.stock) || 0,
       });
       alert("Sample updated successfully!");
     } catch (error) {
@@ -360,7 +367,6 @@ export default function AdminDashboard() {
     }
   };
   
-  // --- Render Content based on activeTab ---
   const renderContent = () => {
     switch (activeTab) {
       case 'orders':
@@ -380,7 +386,6 @@ export default function AdminDashboard() {
       case 'settings':
         return (
           <div className="space-y-8">
-            {/* Announcement Bar Settings */}
             <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
                 <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Site Announcement Bar</h3>
                 <div className="flex flex-col gap-6 max-w-2xl">
@@ -409,7 +414,6 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* NEW: Hero Banner Settings */}
             <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
                 <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Hero Banner Settings</h3>
                 <div className="flex flex-col gap-6 max-w-2xl">
@@ -445,7 +449,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Quick stats
   const totalOrders = orders.length;
   const totalProductRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
   const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -470,11 +473,11 @@ export default function AdminDashboard() {
         </div>
         <div className="p-4 bg-white shadow rounded">
           <h2 className="text-gray-500 text-sm">Product Revenue</h2>
-          <p className="text-2xl font-bold">${totalProductRevenue.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{totalProductRevenue.toFixed(2)}</p>
         </div>
         <div className="p-4 bg-white shadow rounded">
           <h2 className="text-gray-500 text-sm">Total Sales</h2> 
-          <p className="text-2xl font-bold">${totalSales.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{totalSales.toFixed(2)}</p>
         </div>
         {statuses.map(status => (
           <div key={status} className={`p-4 shadow rounded ${statusColors[status]} col-span-1`}> 
