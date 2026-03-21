@@ -1,10 +1,26 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; 
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function HeroBanner() {
   const navigate = useNavigate(); 
   
-  const imagePath = "/images/eid.jpeg"; 
+  // State for the dynamic hero data
+  // Default is your local image in case Firebase is loading
+  const [heroData, setHeroData] = useState({ 
+    imageUrl: "/images/eid.jpeg" 
+  });
+
+  // Listen to Firebase "siteSettings/hero" document in real-time
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "siteSettings", "hero"), (docSnap) => {
+        if (docSnap.exists()) {
+            setHeroData(docSnap.data());
+        }
+    });
+    return () => unsub();
+  }, []);
 
   const handleFilterNavigation = (gender) => {
     navigate(`/products?gender=${gender}`); 
@@ -13,10 +29,10 @@ export default function HeroBanner() {
   return (
     <div className="relative w-full h-[400px] md:h-[500px] lg:h-[450px] overflow-hidden rounded-2xl shadow-xl mb-8">
 
-        {/* The Background Image */}
+        {/* The Dynamic Background Image from Dashboard */}
         <img
-            src={imagePath} 
-            alt="Scentorini Featured Collection - Eid Mubarak"
+            src={heroData.imageUrl} 
+            alt="Scentorini Featured Collection"
             className="
                 w-full 
                 h-full 
@@ -34,10 +50,7 @@ export default function HeroBanner() {
                 backgroundColor: 'rgba(0, 0, 0, 0.15)', 
             }}
         >
-            {/* We use justify-center to keep them in the middle, 
-                then use mt-24 (Margin Top) or translate-y to nudge them down.
-                Adjust mt-20 to mt-32 to find your "sweet spot".
-            */}
+            {/* Kept your exact positioning: mt-24 for mobile, mt-32 for desktop */}
             <div className="flex space-x-4 md:space-x-8 mt-24 md:mt-32">
                 <button
                     onClick={() => handleFilterNavigation('Her')}

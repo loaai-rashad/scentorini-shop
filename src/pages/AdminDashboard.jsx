@@ -33,8 +33,11 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [samples, setSamples] = useState([]);
   
-  // NEW: Announcement Bar State
+  // Announcement Bar State
   const [announcement, setAnnouncement] = useState({ text: '', enabled: false });
+
+  // NEW: Hero Banner State
+  const [heroSettings, setHeroSettings] = useState({ imageUrl: '', active: true });
   
   const [activeTab, setActiveTab] = useState('orders'); 
   
@@ -73,16 +76,20 @@ export default function AdminDashboard() {
     if (!isAdmin) navigate("/admin-login");
   }, [navigate]);
 
-  // NEW: Fetch Announcement Settings
+  // Fetch Announcement & Hero Settings
   useEffect(() => {
-    const fetchAnnouncement = async () => {
-        const docRef = doc(db, "siteSettings", "announcement");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            setAnnouncement(docSnap.data());
-        }
+    const fetchSettings = async () => {
+        // Fetch Announcement
+        const annRef = doc(db, "siteSettings", "announcement");
+        const annSnap = await getDoc(annRef);
+        if (annSnap.exists()) setAnnouncement(annSnap.data());
+
+        // NEW: Fetch Hero Settings
+        const heroRef = doc(db, "siteSettings", "hero");
+        const heroSnap = await getDoc(heroRef);
+        if (heroSnap.exists()) setHeroSettings(heroSnap.data());
     };
-    fetchAnnouncement();
+    fetchSettings();
   }, []);
 
   // Fetch promos once
@@ -157,7 +164,7 @@ export default function AdminDashboard() {
     navigate("/admin-login");
   };
 
-  // NEW: Announcement Handler
+  // Announcement Handler
   const handleSaveAnnouncement = async () => {
     try {
         const docRef = doc(db, "siteSettings", "announcement");
@@ -166,6 +173,18 @@ export default function AdminDashboard() {
     } catch (error) {
         console.error("Error saving announcement:", error);
         alert("Failed to save.");
+    }
+  };
+
+  // NEW: Hero Settings Handler
+  const handleSaveHero = async () => {
+    try {
+        const docRef = doc(db, "siteSettings", "hero");
+        await setDoc(docRef, heroSettings);
+        alert("Hero Banner updated successfully!");
+    } catch (error) {
+        console.error("Error saving hero settings:", error);
+        alert("Failed to save hero settings.");
     }
   };
 
@@ -360,31 +379,64 @@ export default function AdminDashboard() {
         return <AdminReviews />;
       case 'settings':
         return (
-          <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Site Announcement Bar</h3>
-            <div className="flex flex-col gap-6 max-w-2xl">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Ribbon Message</label>
-                <input 
-                  type="text" 
-                  value={announcement.text} 
-                  onChange={(e) => setAnnouncement({...announcement, text: e.target.value})}
-                  className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
-                  placeholder="e.g. FREE SHIPPING ON ALL ORDERS"
-                />
-              </div>
-              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <input 
-                    type="checkbox" 
-                    checked={announcement.enabled} 
-                    onChange={(e) => setAnnouncement({...announcement, enabled: e.target.checked})}
-                    className="w-5 h-5 accent-[#1C3C85] cursor-pointer"
-                />
-                <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Enable Announcement Ribbon</span>
-              </div>
-              <button onClick={handleSaveAnnouncement} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
-                Apply Changes
-              </button>
+          <div className="space-y-8">
+            {/* Announcement Bar Settings */}
+            <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Site Announcement Bar</h3>
+                <div className="flex flex-col gap-6 max-w-2xl">
+                <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Ribbon Message</label>
+                    <input 
+                    type="text" 
+                    value={announcement.text} 
+                    onChange={(e) => setAnnouncement({...announcement, text: e.target.value})}
+                    className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
+                    placeholder="e.g. FREE SHIPPING ON ALL ORDERS"
+                    />
+                </div>
+                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <input 
+                        type="checkbox" 
+                        checked={announcement.enabled} 
+                        onChange={(e) => setAnnouncement({...announcement, enabled: e.target.checked})}
+                        className="w-5 h-5 accent-[#1C3C85] cursor-pointer"
+                    />
+                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Enable Announcement Ribbon</span>
+                </div>
+                <button onClick={handleSaveAnnouncement} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
+                    Apply Announcement
+                </button>
+                </div>
+            </div>
+
+            {/* NEW: Hero Banner Settings */}
+            <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Hero Banner Settings</h3>
+                <div className="flex flex-col gap-6 max-w-2xl">
+                <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Banner Image URL</label>
+                    <input 
+                    type="text" 
+                    value={heroSettings.imageUrl} 
+                    onChange={(e) => setHeroSettings({...heroSettings, imageUrl: e.target.value})}
+                    className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
+                    placeholder="e.g. /images/hero.jpg or https://image-url.com"
+                    />
+                </div>
+                
+                {heroSettings.imageUrl && (
+                    <div className="mt-2">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Image Preview</label>
+                        <div className="w-full h-32 rounded-xl overflow-hidden border border-gray-200">
+                            <img src={heroSettings.imageUrl} alt="Hero Preview" className="w-full h-full object-cover" />
+                        </div>
+                    </div>
+                )}
+
+                <button onClick={handleSaveHero} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
+                    Update Hero Image
+                </button>
+                </div>
             </div>
           </div>
         );
