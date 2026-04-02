@@ -1,157 +1,278 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts';
 
-// Component for displaying insights
 export default function AdminInsights() {
     const [monthlyData, setMonthlyData] = useState([]);
+    const [mainProducts, setMainProducts] = useState([]);
+    const [discoveryBreakdown, setDiscoveryBreakdown] = useState([]);
+    const [upsellMap, setUpsellMap] = useState({}); // New state for pairings
+    const [kpis, setKpis] = useState({ aov: 0, repeatRate: 0, totalUnits: 0, totalRevenue: 0 });
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
 
-    // --- Data Aggregation Logic ---
+    // Function to sync the calculated pairings to Firestore
+    const syncUpsellToFirestore = async () => {
+        setSyncing(true);
+        try {
+            // We save the entire map into one document for easy fetching on product pages
+            await setDoc(doc(db, "metadata", "upsell_logic"), {
+                pairings: upsellMap,
+                lastUpdated: new Date()
+            });
+            alert("Scentorini Upsell logic synced successfully!");
+        } catch (error) {
+            console.error("Sync Error:", error);
+            alert("Failed to sync upsell data.");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchAndAggregateOrders = async () => {
+        const fetchAndAggregateData = async () => {
             setLoading(true);
             try {
-                // Fetch all orders, ordered by creation date
                 const ordersRef = collection(db, "orders");
-                // Note: Firestore doesn't allow easy server-side grouping, so we fetch all 
-                // relevant data and process it in the client (safe for small to medium scale apps).
                 const q = query(ordersRef, orderBy("createdAt", "asc"));
                 const snapshot = await getDocs(q);
 
-                const aggregation = {};
+                const monthAgg = {};
+                const productAgg = {};
+                const discoveryAgg = {};
+                const pairFreq = {}; // Local temp storage for pairings
+                const customerEmails = [];
+                let totalRevenue = 0;
+                let totalUnitsCount = 0;
+                let deliveredCount = 0;
 
                 snapshot.docs.forEach(doc => {
                     const order = doc.data();
-                    
-                    // 1. Skip non-delivered/non-paid orders for revenue stats (Optional: adjust this status check as needed)
                     if (order.status !== 'Delivered') return; 
 
-                    // Get month and year from Firestore Timestamp
+                    deliveredCount++;
                     const date = order.createdAt?.toDate();
                     if (!date) return; 
-                    
-                    // Format key as YYYY-MM (e.g., 2026-01) for correct sorting and grouping
-                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                    const monthLabel = date.toLocaleString('default', { month: 'short', year: '2-digit' });
 
-                    // Calculate NET REVENUE (Excluding shipping)
                     const netRevenue = (order.subtotal || 0) - (order.discount || 0);
+                    totalRevenue += netRevenue;
+                    if (order.customerEmail) customerEmails.push(order.customerEmail);
 
-                    if (!aggregation[monthKey]) {
-                        aggregation[monthKey] = { 
-                            name: monthLabel, // For the chart X-axis
-                            netRevenue: 0, 
-                            orderCount: 0 
-                        };
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!monthAgg[monthKey]) {
+                        monthAgg[monthKey] = { name: date.toLocaleString('default', { month: 'short', year: '2-digit' }), netRevenue: 0, orderCount: 0 };
                     }
+                    monthAgg[monthKey].netRevenue += netRevenue;
+                    monthAgg[monthKey].orderCount += 1;
 
-                    aggregation[monthKey].netRevenue += netRevenue;
-                    aggregation[monthKey].orderCount += 1;
+                    const items = order.items || [];
+                    if (Array.isArray(items)) {
+                        // --- 1. FREQUENTLY BOUGHT TOGETHER LOGIC ---
+                        if (items.length > 1) {
+                            items.forEach(itemA => {
+                                items.forEach(itemB => {
+                                    if (itemA.title !== itemB.title) {
+                                        const a = itemA.title;
+                                        const b = itemB.title;
+                                        if (!pairFreq[a]) pairFreq[a] = {};
+                                        pairFreq[a][b] = (pairFreq[a][b] || 0) + 1;
+                                    }
+                                });
+                            });
+                        }
+
+                        // --- 2. REGULAR AGGREGATION ---
+                        items.forEach(item => {
+                            const qty = Number(item.quantity) || 0;
+                            totalUnitsCount += qty;
+                            const title = item.title || "Unknown";
+                            const isDiscovery = title.toLowerCase().includes("discovery set");
+
+                            if (isDiscovery) {
+                                const parentKey = "discovery-set-total";
+                                if (!productAgg[parentKey]) productAgg[parentKey] = { name: "Discovery Set (Total)", purchaseCount: 0 };
+                                productAgg[parentKey].purchaseCount += qty;
+
+                                const samples = item.selectedSamples || [];
+                                if (Array.isArray(samples)) {
+                                    samples.forEach(scent => {
+                                        if (!discoveryAgg[scent]) discoveryAgg[scent] = { name: scent, count: 0 };
+                                        discoveryAgg[scent].count += qty;
+                                    });
+                                }
+                            } else {
+                                const pId = item.id || item.productId || title;
+                                if (!productAgg[pId]) productAgg[pId] = { name: title, purchaseCount: 0 };
+                                productAgg[pId].purchaseCount += qty;
+                            }
+                        });
+                    }
                 });
 
-                // Convert the aggregated object into a sorted array
-                const sortedData = Object.keys(aggregation)
-                    .sort()
-                    .map(key => ({ 
-                        ...aggregation[key],
-                        // Format revenue for display
-                        netRevenue: parseFloat(aggregation[key].netRevenue.toFixed(2))
-                    }));
+                // Finalize the Upsell Map (Take top 2 suggestions per product)
+                const finalUpsellMap = {};
+                Object.keys(pairFreq).forEach(prod => {
+                    finalUpsellMap[prod] = Object.entries(pairFreq[prod])
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 2)
+                        .map(entry => entry[0]);
+                });
 
-                setMonthlyData(sortedData);
+                setUpsellMap(finalUpsellMap);
+                setKpis({
+                    totalRevenue,
+                    totalUnits: totalUnitsCount,
+                    aov: deliveredCount > 0 ? totalRevenue / deliveredCount : 0,
+                    repeatRate: customerEmails.length > 0 ? ((customerEmails.length - new Set(customerEmails).size) / customerEmails.length) * 100 : 0
+                });
+                setMonthlyData(Object.values(monthAgg));
+                setMainProducts(Object.values(productAgg).sort((a, b) => b.purchaseCount - a.purchaseCount));
+                setDiscoveryBreakdown(Object.values(discoveryAgg).sort((a, b) => b.count - a.count));
 
             } catch (error) {
-                console.error("Error fetching and aggregating insights:", error);
+                console.error("Aggregation Error:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchAndAggregateOrders();
+        fetchAndAggregateData();
     }, []);
-    // --- End Data Aggregation Logic ---
 
+    const COLORS = ['#1C3C85', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4'];
 
     return (
-        <div className="space-y-8">
-            {/* --- 1. Google Analytics Link (Existing Content) --- */}
-            <div className="bg-white p-6 shadow-md rounded-lg space-y-4">
-                <h3 className="text-xl font-semibold text-indigo-700">Google Analytics Insights</h3>
-                <p className="text-gray-700">
-                    Access detailed e-commerce performance graphs, user acquisition reports, and conversion funnels directly in your Google Analytics 4 property.
-                </p>
-                <a
-                    href="https://analytics.google.com/analytics/web/" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150"
+        <div className="space-y-6 pb-12 px-4 bg-gray-50 min-h-screen">
+            {/* Header with Sync Button */}
+            <div className="flex justify-between items-center pt-6">
+                <h2 className="text-xl font-black text-[#1C3C85] uppercase tracking-tighter">Scentorini Insights</h2>
+                <button 
+                    onClick={syncUpsellToFirestore}
+                    disabled={syncing || loading}
+                    className="bg-[#1C3C85] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 disabled:bg-gray-300 transition-all"
                 >
-                    Go to GA4 Reports
-                    <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                </a>
-                <p className="text-xs text-gray-500 mt-4">
-                    * Ensure you are logged into the Google Account associated with the GA4 property: G-4RETXH072M.
-                </p>
+                    {syncing ? "Syncing..." : "Sync Upsell Data"}
+                </button>
             </div>
 
-            {/* --- 2. Custom Sales Analytics --- */}
-            <div className="p-6 bg-white shadow-md rounded-lg">
-                <h3 className="text-xl font-semibold text-green-700 mb-6 border-b pb-2">Custom Monthly Sales Performance</h3>
+            {/* KPI Section */}
+            {!loading && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-[#1C3C85]">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Total Revenue</p>
+                        <p className="text-xl font-black text-[#1C3C85]">EGP {kpis.totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Repeat Rate</p>
+                        <p className="text-xl font-black text-green-600">{kpis.repeatRate.toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-orange-500">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Units Sold</p>
+                        <p className="text-xl font-black text-orange-500">{kpis.totalUnits}</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-gray-400">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">AOV</p>
+                        <p className="text-xl font-black text-gray-800">EGP {kpis.aov.toFixed(0)}</p>
+                    </div>
+                </div>
+            )}
 
-                {loading ? (
-                    <div className="p-8 text-center text-gray-500">Loading sales data and generating charts...</div>
-                ) : monthlyData.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">No delivered orders found for analysis.</div>
-                ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
-                        {/* Monthly Net Revenue Trend (Line Chart) */}
-                        <div className="h-80 w-full">
-                            <h4 className="font-bold text-lg mb-2">Net Revenue Trend (Excl. Shipping)</h4>
+            {loading ? (
+                <div className="py-20 text-center font-black text-gray-300 animate-pulse uppercase tracking-tighter">Analyzing Data...</div>
+            ) : (
+                <>
+                    {/* Charts Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-black uppercase text-[#1C3C85] mb-6 tracking-widest">Main Product Performance</h3>
+                            <div style={{ height: `${Math.max(300, mainProducts.length * 40)}px` }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={mainProducts} layout="vertical">
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 10, fontWeight: 'bold'}} axisLine={false} />
+                                        <Tooltip cursor={{fill: 'transparent'}} />
+                                        <Bar dataKey="purchaseCount" radius={[0, 10, 10, 0]} barSize={20}>
+                                            {mainProducts.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-black uppercase text-orange-600 mb-2 tracking-widest">Inside Discovery Sets</h3>
+                            {discoveryBreakdown.length > 0 ? (
+                                <div style={{ height: `${Math.max(300, discoveryBreakdown.length * 40)}px` }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={discoveryBreakdown} layout="vertical">
+                                            <XAxis type="number" hide />
+                                            <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 10}} axisLine={false} />
+                                            <Tooltip />
+                                            <Bar dataKey="count" fill="#FF9800" radius={[0, 10, 10, 0]} barSize={20} name="Total Selections" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-50 rounded-xl text-gray-300 text-xs font-bold uppercase tracking-widest">
+                                    No Sample Data
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Upsell Preview Table */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="text-xs font-black uppercase text-[#1C3C85] mb-4 tracking-widest">Upsell Suggestions Preview</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-[10px] text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                        <th className="pb-3">Product</th>
+                                        <th className="pb-3">Top Suggestions (Bought Together)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-xs">
+                                    {Object.entries(upsellMap).map(([prod, suggestions]) => (
+                                        <tr key={prod} className="border-b border-gray-50 last:border-0">
+                                            <td className="py-3 font-bold text-gray-700">{prod}</td>
+                                            <td className="py-3 text-[#1C3C85] font-medium">{suggestions.join(", ") || "None yet"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-64">
+                            <h4 className="font-black text-gray-400 uppercase text-[10px] tracking-widest mb-4">Revenue Trend</h4>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                                    <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Net Revenue']} />
-                                    <Legend />
-                                    <Line type="monotone" dataKey="netRevenue" stroke="#8884d8" activeDot={{ r: 8 }} name="Net Revenue" />
+                                <LineChart data={monthlyData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                    <XAxis dataKey="name" tick={{fontSize: 10}} axisLine={false} />
+                                    <YAxis tick={{fontSize: 10}} axisLine={false} />
+                                    <Tooltip />
+                                    <Line type="monotone" dataKey="netRevenue" stroke="#1C3C85" strokeWidth={3} dot={{r: 4}} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
-                        
-                        {/* Monthly Order Count Comparison (Bar Chart) */}
-                        <div className="h-80 w-full">
-                            <h4 className="font-bold text-lg mb-2">Orders Per Month</h4>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-64">
+                            <h4 className="font-black text-gray-400 uppercase text-[10px] tracking-widest mb-4">Order Volume</h4>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis allowDecimals={false} />
-                                    <Tooltip formatter={(value) => [value, 'Orders']} />
-                                    <Legend />
-                                    <Bar dataKey="orderCount" fill="#4CAF50" name="Total Orders" />
+                                <BarChart data={monthlyData}>
+                                    <XAxis dataKey="name" tick={{fontSize: 10}} axisLine={false} />
+                                    <YAxis tick={{fontSize: 10}} axisLine={false} />
+                                    <Tooltip />
+                                    <Bar dataKey="orderCount" fill="#4CAF50" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
-
                     </div>
-                )}
-            </div>
-
-            {/* --- 3. Future Insight Idea --- */}
-            <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
-                <p className="font-bold">💡 Next Insight Idea: Top Product Performance</p>
-                <p className="text-sm mt-1">
-                    To expand your insights, you could aggregate the `items` array within each order to identify your Top 5 best-selling products by quantity over a period, giving you direct inventory and marketing focus.
-                </p>
-            </div>
+                </>
+            )}
         </div>
     );
 }

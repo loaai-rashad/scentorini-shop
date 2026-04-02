@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, orderBy, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import LoadingScreen from "../components/LoadingScreen"; 
@@ -9,6 +9,8 @@ import ReactGA from 'react-ga4';
 // Review Components
 import ReviewSlider from "../components/ReviewSlider";
 import ReviewModal from "../components/ReviewModal";
+// NEW: Import the Upsell Component
+import UpsellSection from "../components/UpsellSection";
 
 const isValidImageUrl = (url) => {
     if (!url || typeof url !== 'string' || url.length < 5) return false;
@@ -29,17 +31,19 @@ const getCleanImages = (productData) => {
 export default function ProductPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [allProducts, setAllProducts] = useState([]); // Needed for Upsell lookup
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState(false);
   const [mainImage, setMainImage] = useState(""); 
-  const [selectedSize, setSelectedSize] = useState(null); // Default to null to show Base Price
+  const [selectedSize, setSelectedSize] = useState(null); 
   const [reviews, setReviews] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProductData = async () => {
       try {
+        // 1. Fetch current product
         const docRef = doc(db, "products", id);
         const docSnap = await getDoc(docRef);
 
@@ -51,9 +55,6 @@ export default function ProductPage() {
           setProduct(productWithImages);
           setMainImage(cleanImages[0] || "/perfume.jpeg");
 
-          // FIXED: Removed the auto-selection of the first size option.
-          // This ensures the "Base Price" shows on initial page load.
-          
           ReactGA.event('view_item', {
               currency: "EGP",
               value: Number(productData.price) || 0, 
@@ -64,8 +65,14 @@ export default function ProductPage() {
               }]
           });
         }
+
+        // 2. Fetch all products (to pass to UpsellSection)
+        const productsSnap = await getDocs(collection(db, "products"));
+        const productsList = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAllProducts(productsList);
+
       } catch (error) {
-        console.error("Error fetching product:", error);
+        console.error("Error fetching product data:", error);
       } finally {
         setLoading(false);
       }
@@ -86,16 +93,18 @@ export default function ProductPage() {
     return () => unsubscribe();
   }, [id]);
 
-  const handleAddToCart = () => {
-    // If a size is selected, use that price; otherwise, use the base product price.
-    const finalPrice = selectedSize ? Number(selectedSize.price) : Number(product.price);
-    const finalSizeLabel = selectedSize ? selectedSize.size : (product.subtitle || "Standard");
+  const handleAddToCart = (itemToTarget = null) => {
+    // If itemToTarget is provided (from Upsell), use it; otherwise use main product
+    const target = itemToTarget || product;
+    
+    const finalPrice = itemToTarget ? Number(itemToTarget.price) : (selectedSize ? Number(selectedSize.price) : Number(product.price));
+    const finalSizeLabel = itemToTarget ? (itemToTarget.subtitle || "Standard") : (selectedSize ? selectedSize.size : (product.subtitle || "Standard"));
 
     const cartItem = {
-      ...product,
+      ...target,
       price: finalPrice || 0,
       selectedSize: finalSizeLabel,
-      cartItemId: `${product.id}-${finalSizeLabel}`
+      cartItemId: `${target.id}-${finalSizeLabel}`
     };
     
     addToCart(cartItem);
@@ -117,7 +126,6 @@ export default function ProductPage() {
   const uniqueGalleryImages = product.uniqueGalleryImages || [];
   const currentMainImage = mainImage || uniqueGalleryImages[0] || "/perfume.jpeg";
 
-  // LOGIC: Use the selected size price if available, otherwise fallback to the base price.
   const displayedPrice = selectedSize?.price 
     ? Number(selectedSize.price) 
     : (Number(product.price) || 0);
@@ -170,7 +178,6 @@ export default function ProductPage() {
               </div>
           )}
 
-          {/* DYNAMIC PRICE DISPLAY */}
           <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-stone-900">
                 EGP {displayedPrice.toLocaleString()}
@@ -182,7 +189,6 @@ export default function ProductPage() {
             <div className="mt-2">
               <h4 className="font-bold uppercase text-[10px] tracking-widest text-stone-400 mb-3">Select Size</h4>
               <div className="flex flex-wrap gap-2">
-                {/* Optional: Add a "Base" button if you want users to be able to toggle back */}
                 <button
                     onClick={() => setSelectedSize(null)}
                     className={`px-6 py-2 rounded-full border-2 text-sm font-bold transition-all
@@ -238,7 +244,7 @@ export default function ProductPage() {
               {Number(product.stock) > 0 ? (
                   <button
                       className="w-full bg-[#1C3C85] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-[#142d63] transition-all transform active:scale-95 shadow-lg" 
-                      onClick={handleAddToCart}
+                      onClick={() => handleAddToCart()}
                   >
                       Add to Cart
                   </button>
@@ -258,6 +264,14 @@ export default function ProductPage() {
                   {product.description}
               </div>
           </div>
+
+          {/* NEW: UPSELL SECTION INTEGRATION */}
+          <UpsellSection 
+            currentProduct={product} 
+            allProducts={allProducts} 
+            addToCart={(item) => handleAddToCart(item)}
+          />
+
         </div>
       </div>
 
