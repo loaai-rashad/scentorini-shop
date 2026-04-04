@@ -94,13 +94,18 @@ export default function DiscoverySetPage() {
     // ----------------------------------------------------------------------
     
     const handleSelectionChange = (index, value) => {
-        // ... (unchanged)
         const newSelections = [...selections];
         
-        // Ensure no duplicates are selected
-        if (value !== '' && newSelections.includes(value)) {
-            setMessage(`Error: '${value}' is already selected.`);
-            return;
+        // Logic: Allow the same item up to 2 times
+        if (value !== '') {
+            // Count how many times this perfume is selected in OTHER slots
+            const currentOccurrences = newSelections.filter((title, i) => i !== index && title === value).length;
+
+            // If it already exists 2 times elsewhere, block the 3rd selection
+            if (currentOccurrences >= 2) {
+                setMessage(`Error: You can only select '${value}' up to 2 times per set.`);
+                return;
+            }
         }
         
         newSelections[index] = value === '' ? null : value;
@@ -108,7 +113,7 @@ export default function DiscoverySetPage() {
         setMessage(''); 
     };
 
-    // --- Logic: Calculate Total (unchanged) ---
+    // --- Logic: Calculate Total ---
     const calculateTotal = () => {
         const activeTitles = selections.filter(title => title !== null);
         const count = activeTitles.length;
@@ -214,10 +219,10 @@ export default function DiscoverySetPage() {
             {/* ---------------------------------------------------------------- */}
 
             <p className="text-center text-gray-600 mb-8">
-                Select 3 to 6 unique perfumes to create your personalized sample set.
+                Select 3 to 6 perfumes to create your personalized sample set.
                 <br/>
                 <span className="text-sm italic text-gray-500">
-                    The price is the sum of the individual sample prices.
+                    You can select the same perfume up to 2 times. The price is the sum of the individual sample prices.
                 </span>
             </p>
 
