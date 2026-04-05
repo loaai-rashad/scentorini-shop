@@ -25,6 +25,8 @@ import AdminPromos from '../components/admin/AdminPromos';
 import AdminInsights from '../components/admin/AdminInsights'; 
 import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; 
 import AdminReviews from '../components/admin/AdminReviews';
+// NEW COMPONENT IMPORT
+import AdminInventory from '../components/admin/AdminInventory';
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -240,7 +242,6 @@ export default function AdminDashboard() {
     );
   };
 
-  // FIXED: Logic to handle structured sizeOptions and numeric prices safely
   const handleSaveProduct = async id => {
     try {
       const productRef = doc(db, "products", id);
@@ -271,7 +272,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // FIXED: Logic to handle structured sizeOptions during creation safely
   const handleAddProduct = async () => {
     if (!newProduct.title || !newProduct.for)
       return alert("Title and 'For' field are required.");
@@ -383,6 +383,8 @@ export default function AdminDashboard() {
         return <AdminCustomizableSections />;
       case 'reviews': 
         return <AdminReviews />;
+      case 'inventory': // NEW CASE ADDED
+        return <AdminInventory />;
       case 'settings':
         return (
           <div className="space-y-8">
@@ -497,6 +499,7 @@ export default function AdminDashboard() {
             { id: 'insights', name: 'Insights' }, 
             { id: 'sections', name: 'Custom Sections' }, 
             { id: 'reviews', name: 'Reviews' },
+            { id: 'inventory', name: 'Drop Expenses' }, // NEW TAB ADDED
             { id: 'settings', name: 'Site Settings' },
           ].map(tab => (
             <button
