@@ -66,11 +66,12 @@ export default function CustomProductSection({ sectionConfig }) {
   return (
     // 2. Wrap section in motion.section for the scroll reveal
     <motion.section 
-      initial={{ opacity: 0, y: 30 }} // Start invisible and slightly below
-      whileInView={{ opacity: 1, y: 0 }} // Animate to full visibility and original position
-      viewport={{ once: true, amount: 0.1 }} // Trigger once when 10% of the section is visible
-      transition={{ duration: 0.6, ease: "easeOut" }} // Smooth transition timing
-      className="p-8 max-w-7xl mx-auto my-12"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      // CHANGED: Reduced vertical margin (my-4) and vertical padding (py-4)
+      className="px-8 py-4 max-w-7xl mx-auto my-4 md:my-8"
     >
       {/* Title fixed to one line and responsive size */}
       <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-10 whitespace-nowrap">
