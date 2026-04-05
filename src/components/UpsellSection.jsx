@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'; 
-import { Link } from 'react-router-dom'; // Import Link for navigation
+import { Link } from 'react-router-dom';
 
 export default function UpsellSection({ currentProduct, allProducts, addToCart }) {
     const [suggestions, setSuggestions] = useState([]);
@@ -17,8 +17,11 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
                     const pairMap = docSnap.data().pairings || {};
                     const matchedTitles = pairMap[currentProduct.title] || [];
                     
+                    // FIXED: Filter out the current product AND the Discovery Set ID
                     const recommended = allProducts.filter(p => 
-                        matchedTitles.includes(p.title) && p.id !== currentProduct.id
+                        matchedTitles.includes(p.title) && 
+                        p.id !== currentProduct.id && 
+                        p.id !== 'oCD4raXzttsP44xAruut' // This removes the discovery set
                     );
 
                     setSuggestions(recommended);
@@ -56,11 +59,10 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
                         key={item.id} 
                         className="group flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 hover:border-[#1C3C85]/20 hover:shadow-md transition-all duration-300"
                     >
-                        {/* WRAP IMAGE & TEXT IN LINK */}
                         <Link 
                             to={`/products/${item.id}`} 
                             className="flex items-center gap-4 flex-1 min-w-0"
-                            onClick={() => window.scrollTo(0, 0)} // Scroll to top when moving to new product
+                            onClick={() => window.scrollTo(0, 0)}
                         >
                             <div className="w-20 h-20 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
                                 <img 
@@ -80,10 +82,9 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
                             </div>
                         </Link>
 
-                        {/* KEEP QUICK ADD BUTTON SEPARATE */}
                         <button 
                             onClick={(e) => {
-                                e.preventDefault(); // Safety check
+                                e.preventDefault();
                                 addToCart(item);
                             }}
                             className="bg-[#1C3C85] text-white p-3 rounded-xl hover:bg-black transition-all active:scale-90 z-10"
