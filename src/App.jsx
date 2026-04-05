@@ -100,18 +100,18 @@ function App() {
                 ))}
                 
                 {/* --- 2. DISCOVERY SET BUILDER --- */}
-                {/* This stays fixed because it is a core feature */}
-                <section className="p-4 max-w-7xl mx-auto my-12">
-                    <h2 className="text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-6">
-                        Design Your Experience
-                    </h2>
-                    <p className="text-center text-gray-600 mb-10">
-                        Create your personalized Discovery Set with 3 to 6 custom samples.
-                    </p>
-                    <div className="flex justify-center">
-                        <DiscoveryCardFetcher />
-                    </div>
-                </section>
+<section className="px-8 py-4 max-w-7xl mx-auto my-4 md:my-8">
+    <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-2">
+        Design Your Experience
+    </h2>
+    <p className="text-center text-gray-500 text-sm mb-8">
+        Create your personalized Discovery Set with 3 to 6 custom samples.
+    </p>
+    {/* This flex container ensures the Discovery card is centered */}
+    <div className="flex justify-center items-center w-full">
+        <DiscoveryCardFetcher />
+    </div>
+</section>
 
                 {/* --- 3. REVIEWS SECTION --- */}
                 <ReviewSlider title="Customer Stories" reviews={reviews} />

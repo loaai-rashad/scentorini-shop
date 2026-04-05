@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ProductCard from './ProductCard'; 
-import { motion } from 'framer-motion'; // 1. Added Framer Motion
+import { motion } from 'framer-motion';
 
 export default function CustomProductSection({ sectionConfig }) {
   const [products, setProducts] = useState([]);
@@ -55,7 +55,7 @@ export default function CustomProductSection({ sectionConfig }) {
 
   if (loading) {
     return productIds && productIds.length > 0 ? (
-        <div className="text-center p-8 text-gray-500">Loading {title} products...</div>
+        <div className="text-center p-8 text-gray-500 font-montserrat">Loading {title}...</div>
     ) : null; 
   }
 
@@ -64,26 +64,28 @@ export default function CustomProductSection({ sectionConfig }) {
   }
   
   return (
-    // 2. Wrap section in motion.section for the scroll reveal
     <motion.section 
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      // CHANGED: Reduced vertical margin (my-4) and vertical padding (py-4)
-      className="px-8 py-4 max-w-7xl mx-auto my-4 md:my-8"
+      className="px-4 md:px-8 py-4 max-w-7xl mx-auto my-4 md:my-8 overflow-hidden"
     >
-      {/* Title fixed to one line and responsive size */}
-      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-10 whitespace-nowrap">
+      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-8 md:mb-10 whitespace-nowrap">
         {title}
       </h2>
       
+      {/* FIX: 
+          1. We use 'justify-center' by default.
+          2. We use 'md:justify-start' and 'overflow-x-auto' only if products exceed view.
+          3. 'items-center' ensures cards stay vertically aligned.
+      */}
       <div 
         className={`
-          flex gap-6 pb-4
-          ${products.length === 1 
+          flex gap-6 pb-6 w-full
+          ${products.length < 4 
             ? 'justify-center' 
-            : 'overflow-x-auto custom-scrollbar' 
+            : 'justify-start overflow-x-auto custom-scrollbar md:justify-start'
           }
         `}
       >
@@ -107,15 +109,19 @@ export default function CustomProductSection({ sectionConfig }) {
       
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
-          height: 8px;
+          height: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #ddd;
+          background-color: #e2e8f0;
           border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
         }
         .custom-scrollbar {
           scrollbar-width: thin; 
-          scrollbar-color: #ddd transparent; 
+          scrollbar-color: #e2e8f0 transparent; 
+          -webkit-overflow-scrolling: touch;
         }
       `}</style>
     </motion.section>

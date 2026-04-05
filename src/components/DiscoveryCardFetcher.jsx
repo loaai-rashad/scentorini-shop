@@ -58,24 +58,27 @@ export default function DiscoveryCardFetcher() {
     }
 
     return (
-        // 2. Wrap the card in a motion div for the "Reveal on Scroll" effect
+        // 1. Added "mx-auto" and removed "w-full" from the motion div to prevent stretching
+        // 2. Added "flex justify-center items-center" to the container
         <motion.div
-            initial={{ opacity: 0, y: 30 }} // Start invisible and lower
-            whileInView={{ opacity: 1, y: 0 }} // Animate to visible and normal position
-            viewport={{ once: true, amount: 0.2 }} // Trigger when 20% of the card is visible
-            transition={{ duration: 0.7, ease: "easeOut" }} // Smooth timing
-            className="w-full flex justify-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="flex justify-center items-center w-full py-4"
         >
-            <ProductCard
-                id={productData.id}
-                images={productData.images || []} 
-                title={productData.title || "Discovery Set Builder"}
-                subtitle={productData.subtitle || "Custom Sample Set"}
-                price={productData.price || 0.00}
-                stock={productData.stock || 0.00}
-                for={productData.for || "tester"} 
-                className="w-full max-w-sm shadow-xl" // Added a slight shadow for depth
-            />
+            {/* 3. Wrap the card in a div with a fixed width to match your other sections (w-64) */}
+            <div className="w-64 flex-shrink-0">
+                <ProductCard
+                    id={productData.id}
+                    images={productData.images || []} 
+                    title={productData.title || "Discovery Set Builder"}
+                    subtitle={productData.subtitle || "Custom Sample Set"}
+                    price={productData.price || 0.00}
+                    stock={productData.stock || 0.00}
+                    for={productData.for || "tester"} 
+                />
+            </div>
         </motion.div>
     );
 }
