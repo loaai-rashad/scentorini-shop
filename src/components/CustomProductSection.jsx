@@ -83,10 +83,16 @@ export default function CustomProductSection({ sectionConfig }) {
       <div 
         className={`
           flex gap-6 pb-6 w-full
+          /* The logic: 
+             - Centered by default (for 1-2 items)
+             - Switches to justify-start and allows scrolling ONLY when content overflows
+          */
           ${products.length < 4 
             ? 'justify-center' 
-            : 'justify-start overflow-x-auto custom-scrollbar md:justify-start'
+            : 'justify-start overflow-x-auto custom-scrollbar'
           }
+          /* Important for mobile: always allow start-alignment if the screen is too narrow */
+          max-md:justify-start max-md:overflow-x-auto
         `}
       >
         {products.map((product) => (
