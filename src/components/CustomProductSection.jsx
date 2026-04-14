@@ -69,67 +69,38 @@ export default function CustomProductSection({ sectionConfig }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="px-4 md:px-8 py-4 max-w-7xl mx-auto my-4 md:my-8 overflow-hidden"
+      className="px-4 md:px-8 py-4 max-w-7xl mx-auto my-4 md:my-8"
     >
       <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-8 md:mb-10 whitespace-nowrap">
         {title}
       </h2>
       
-      {/* FIX: 
-          1. We use 'justify-center' by default.
-          2. We use 'md:justify-start' and 'overflow-x-auto' only if products exceed view.
-          3. 'items-center' ensures cards stay vertically aligned.
-      */}
-      <div 
-        className={`
-          flex gap-6 pb-6 w-full
-          /* The logic: 
-             - Centered by default (for 1-2 items)
-             - Switches to justify-start and allows scrolling ONLY when content overflows
-          */
-          ${products.length < 4 
-            ? 'justify-center' 
-            : 'justify-start overflow-x-auto custom-scrollbar'
-          }
-          /* Important for mobile: always allow start-alignment if the screen is too narrow */
-          max-md:justify-start max-md:overflow-x-auto
-        `}
-      >
-        {products.map((product) => (
-          <div 
-            key={product.id} 
-            className="flex-shrink-0 w-64" 
-          > 
-            <ProductCard 
-                id={product.id}
-                images={product.images}
-                title={product.title}
-                subtitle={product.subtitle}
-                price={product.price}
-                stock={product.stock}
-                for={product.for}
-            /> 
-          </div>
-        ))}
+      {/* Scroll Wrapper */}
+      <div className="w-full overflow-x-auto custom-scrollbar pb-6">
+        {/* Centering Wrapper: 
+            If products < 4, it centers them. 
+            If more, it allows them to take their natural width for scrolling. */}
+        <div 
+          className={`
+            flex gap-6 min-w-full w-max mx-auto
+            ${products.length < 4 ? 'justify-center' : 'justify-start px-4'}
+          `}
+        >
+          {products.map((product) => (
+            <div key={product.id} className="flex-shrink-0 w-64"> 
+              <ProductCard 
+                  id={product.id}
+                  images={product.images}
+                  title={product.title}
+                  subtitle={product.subtitle}
+                  price={product.price}
+                  stock={product.stock}
+                  for={product.for}
+              /> 
+            </div>
+          ))}
+        </div>
       </div>
-      
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #e2e8f0;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar {
-          scrollbar-width: thin; 
-          scrollbar-color: #e2e8f0 transparent; 
-          -webkit-overflow-scrolling: touch;
-        }
-      `}</style>
     </motion.section>
   );
 }
