@@ -25,8 +25,9 @@ import AdminPromos from '../components/admin/AdminPromos';
 import AdminInsights from '../components/admin/AdminInsights'; 
 import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; 
 import AdminReviews from '../components/admin/AdminReviews';
-// NEW COMPONENT IMPORT
+
 import AdminInventory from '../components/admin/AdminInventory';
+import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -198,7 +199,7 @@ export default function AdminDashboard() {
   const handleDeleteOrder = async id => {
     if (!window.confirm("Are you sure you want to delete this order?")) return;
     try {
-      await deleteDoc(doc(db, "orders", id));
+     await deleteDoc(doc(db, "orders", id));
       setOrders(prev => prev.filter(o => o.id !== id));
     } catch (error) {
       console.error("Failed to delete order:", error);
@@ -297,7 +298,7 @@ export default function AdminDashboard() {
         price: "", 
         stock: "", 
         images: [], 
-        description: "", 
+       description: "", 
         for: "", 
         inspiredBy: "", 
         sizeOptions: [] 
@@ -385,6 +386,8 @@ export default function AdminDashboard() {
         return <AdminReviews />;
       case 'inventory': // NEW CASE ADDED
         return <AdminInventory />;
+      case 'loyalty': // NEW CASE ADDED FOR LOYAL CUSTOMERS
+        return <LoyalCustomers orders={orders} />;
       case 'settings':
         return (
           <div className="space-y-8">
@@ -397,7 +400,7 @@ export default function AdminDashboard() {
                     type="text" 
                     value={announcement.text} 
                     onChange={(e) => setAnnouncement({...announcement, text: e.target.value})}
-                    className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
+                   className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
                     placeholder="e.g. FREE SHIPPING ON ALL ORDERS"
                     />
                 </div>
@@ -499,7 +502,8 @@ export default function AdminDashboard() {
             { id: 'insights', name: 'Insights' }, 
             { id: 'sections', name: 'Custom Sections' }, 
             { id: 'reviews', name: 'Reviews' },
-            { id: 'inventory', name: 'Drop Expenses' }, // NEW TAB ADDED
+            { id: 'inventory', name: 'Drop Expenses' },
+            { id: 'loyalty', name: 'Loyalty' }, // ADDED TAB HERE
             { id: 'settings', name: 'Site Settings' },
           ].map(tab => (
             <button
