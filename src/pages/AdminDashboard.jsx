@@ -59,6 +59,43 @@ export default function AdminDashboard() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const navigate = useNavigate();
 
+  // --- Inside AdminDashboard Component ---
+const [shippingRates, setShippingRates] = useState([]);
+const [newRate, setNewRate] = useState({ governorate: '', price: '' });
+
+// Fetch Shipping Rates
+useEffect(() => {
+  const ratesRef = collection(db, "shippingRates");
+  const unsubscribe = onSnapshot(ratesRef, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Sort A-Z for the admin too
+    setShippingRates(data.sort((a, b) => a.governorate.localeCompare(b.governorate)));
+  });
+  return () => unsubscribe();
+}, []);
+
+// Handlers
+const handleAddShippingRate = async () => {
+  if (!newRate.governorate || !newRate.price) return alert("Fill both fields");
+  try {
+    await addDoc(collection(db, "shippingRates"), {
+      governorate: newRate.governorate.trim(),
+      price: parseFloat(newRate.price)
+    });
+    setNewRate({ governorate: '', price: '' });
+  } catch (error) {
+    console.error("Error adding rate:", error);
+  }
+};
+
+const handleDeleteShippingRate = async (id) => {
+  if (!window.confirm("Delete this shipping rate?")) return;
+  try {
+    await deleteDoc(doc(db, "shippingRates", id));
+  } catch (error) {
+    console.error("Error deleting rate:", error);
+  }
+};
   const statuses = ["New", "Packed", "Shipped", "Delivered"];
   const statusColors = {
     New: "bg-white text-gray-800 border border-gray-300",
@@ -388,67 +425,147 @@ export default function AdminDashboard() {
         return <AdminInventory />;
       case 'loyalty': // NEW CASE ADDED FOR LOYAL CUSTOMERS
         return <LoyalCustomers orders={orders} />;
-      case 'settings':
-        return (
-          <div className="space-y-8">
-            <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Site Announcement Bar</h3>
-                <div className="flex flex-col gap-6 max-w-2xl">
-                <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Ribbon Message</label>
-                    <input 
-                    type="text" 
-                    value={announcement.text} 
-                    onChange={(e) => setAnnouncement({...announcement, text: e.target.value})}
-                   className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
-                    placeholder="e.g. FREE SHIPPING ON ALL ORDERS"
-                    />
-                </div>
-                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <input 
-                        type="checkbox" 
-                        checked={announcement.enabled} 
-                        onChange={(e) => setAnnouncement({...announcement, enabled: e.target.checked})}
-                        className="w-5 h-5 accent-[#1C3C85] cursor-pointer"
-                    />
-                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Enable Announcement Ribbon</span>
-                </div>
-                <button onClick={handleSaveAnnouncement} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
-                    Apply Announcement
-                </button>
-                </div>
-            </div>
-
-            <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4 font-archivo">Hero Banner Settings</h3>
-                <div className="flex flex-col gap-6 max-w-2xl">
-                <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Banner Image URL</label>
-                    <input 
-                    type="text" 
-                    value={heroSettings.imageUrl} 
-                    onChange={(e) => setHeroSettings({...heroSettings, imageUrl: e.target.value})}
-                    className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
-                    placeholder="e.g. /images/hero.jpg or https://image-url.com"
-                    />
-                </div>
-                
-                {heroSettings.imageUrl && (
-                    <div className="mt-2">
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Image Preview</label>
-                        <div className="w-full h-32 rounded-xl overflow-hidden border border-gray-200">
-                            <img src={heroSettings.imageUrl} alt="Hero Preview" className="w-full h-full object-cover" />
-                        </div>
+        case 'settings':
+          return (
+            <div className="space-y-8 font-archivo">
+              {/* 1. Site Announcement Bar (Existing) */}
+              <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Site Announcement Bar</h3>
+                  <div className="flex flex-col gap-6 max-w-2xl">
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Ribbon Message</label>
+                        <input 
+                        type="text" 
+                        value={announcement.text} 
+                        onChange={(e) => setAnnouncement({...announcement, text: e.target.value})}
+                        className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
+                        placeholder="e.g. FREE SHIPPING ON ALL ORDERS"
+                        />
                     </div>
-                )}
-
-                <button onClick={handleSaveHero} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
-                    Update Hero Image
-                </button>
-                </div>
+                    <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <input 
+                            type="checkbox" 
+                            checked={announcement.enabled} 
+                            onChange={(e) => setAnnouncement({...announcement, enabled: e.target.checked})}
+                            className="w-5 h-5 accent-[#1C3C85] cursor-pointer"
+                        />
+                        <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Enable Announcement Ribbon</span>
+                    </div>
+                    <button onClick={handleSaveAnnouncement} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
+                        Apply Announcement
+                    </button>
+                  </div>
+              </div>
+        
+              {/* --- NEW: SHIPPING RATES MANAGER --- */}
+              <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black uppercase text-[#1C3C85]">Shipping Rates Manager</h3>
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                        {shippingRates.length} Destinations
+                      </span>
+                  </div>
+        
+                  {/* Quick Add Form */}
+                  <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-xl mb-6 border border-gray-100">
+                      <div className="flex-1 min-w-[200px]">
+                          <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Governorate Name</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. Cairo"
+                            value={newRate.governorate}
+                            onChange={(e) => setNewRate({...newRate, governorate: e.target.value})}
+                            className="w-full p-3 border rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                          />
+                      </div>
+                      <div className="w-32">
+                          <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Price (EGP)</label>
+                          <input 
+                            type="number" 
+                            placeholder="75"
+                            value={newRate.price}
+                            onChange={(e) => setNewRate({...newRate, price: e.target.value})}
+                            className="w-full p-3 border rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                          />
+                      </div>
+                      <div className="flex items-end">
+                          <button 
+                            onClick={handleAddShippingRate}
+                            className="bg-[#1C3C85] text-white px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-all active:scale-95 shadow-md"
+                          >
+                            Add Rate
+                          </button>
+                      </div>
+                  </div>
+        
+                  {/* Rates List */}
+                  <div className="max-h-[300px] overflow-y-auto border rounded-xl">
+                      <table className="w-full text-left border-collapse">
+                          <thead className="sticky top-0 bg-white shadow-sm">
+                              <tr>
+                                  <th className="p-4 text-[10px] font-black text-gray-400 uppercase border-b">Governorate</th>
+                                  <th className="p-4 text-[10px] font-black text-gray-400 uppercase border-b">Price</th>
+                                  <th className="p-4 text-[10px] font-black text-gray-400 uppercase border-b text-right">Action</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {shippingRates.map((rate) => (
+                                  <tr key={rate.id} className="hover:bg-gray-50 border-b last:border-0 transition-colors">
+                                      <td className="p-4 font-bold text-gray-700">{rate.governorate}</td>
+                                      <td className="p-4 font-black text-[#1C3C85]">{rate.price} EGP</td>
+                                      <td className="p-4 text-right">
+                                          <button 
+                                            onClick={() => handleDeleteShippingRate(rate.id)}
+                                            className="text-red-400 hover:text-red-600 font-black text-[10px] uppercase transition-colors"
+                                          >
+                                            Delete
+                                          </button>
+                                      </td>
+                                  </tr>
+                              ))}
+                              {shippingRates.length === 0 && (
+                                <tr>
+                                    <td colSpan="3" className="p-8 text-center text-gray-400 font-bold uppercase text-xs italic">
+                                        No rates found. Add one above.
+                                    </td>
+                                </tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+        
+              {/* 3. Hero Banner Settings (Existing) */}
+              <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Hero Banner Settings</h3>
+                  <div className="flex flex-col gap-6 max-w-2xl">
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Banner Image URL</label>
+                        <input 
+                        type="text" 
+                        value={heroSettings.imageUrl} 
+                        onChange={(e) => setHeroSettings({...heroSettings, imageUrl: e.target.value})}
+                        className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
+                        placeholder="e.g. /images/hero.jpg or https://image-url.com"
+                        />
+                    </div>
+                    
+                    {heroSettings.imageUrl && (
+                        <div className="mt-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Image Preview</label>
+                            <div className="w-full h-32 rounded-xl overflow-hidden border border-gray-200">
+                                <img src={heroSettings.imageUrl} alt="Hero Preview" className="w-full h-full object-cover" />
+                            </div>
+                        </div>
+                    )}
+        
+                    <button onClick={handleSaveHero} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
+                        Update Hero Image
+                    </button>
+                  </div>
+              </div>
             </div>
-          </div>
-        );
+          );
       default:
         return null;
     }
