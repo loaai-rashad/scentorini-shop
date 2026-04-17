@@ -89,7 +89,7 @@ export default function Cart() {
       <div className="mt-6 flex flex-col gap-2">
         <span className="text-xl font-bold">Total: EGP{total.toFixed(2)}</span>
         <div className="text-gray-600 text-sm">
-          * Shipping: 75 EGP all over Egypt, 30 EGP in Ismailia.
+          
         </div>
       </div>
 
