@@ -26,6 +26,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Confirmation from "./pages/Confirmation";
 import About from "./pages/About";
+import Account from "./pages/Account"; // IMPORTED ACCOUNT PAGE
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 
@@ -139,6 +140,7 @@ function App() {
           <Route path="/testers/builder" element={<DiscoverySetPage />} /> 
           <Route path="/products/:id" element={<ProductPage />} />
           <Route path="/about" element={<About />} />
+          <Route path="/account" element={<Account />} /> {/* NEW ACCOUNT ROUTE */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/confirmation" element={<Confirmation />} />
