@@ -1,5 +1,3 @@
-// src/components/admin/AdminPromos.jsx
-
 import React from 'react';
 
 export default function AdminPromos({
@@ -7,7 +5,8 @@ export default function AdminPromos({
     newPromo,
     setNewPromo,
     handleCreatePromo,
-    togglePromoActive
+    togglePromoActive,
+    handleDeletePromo // <--- Make sure to pass this function from your parent component
 }) {
     return (
         <div className="p-4 bg-white rounded shadow">
@@ -46,23 +45,38 @@ export default function AdminPromos({
                 {promoCodes.map(p => (
                     <div
                         key={p.id}
-                        className={`px-3 py-1 rounded border flex items-center justify-between gap-2 ${
+                        className={`px-3 py-1 rounded border flex items-center justify-between gap-3 ${
                             p.active ? "bg-green-100 text-green-800 border-green-300" : "bg-gray-200 text-gray-700 border-gray-300"
                         }`}
                     >
-                        <span>
+                        <span className="font-medium">
                             {p.code} ({p.discount}%)
                         </span>
-                        <button
-                            onClick={() => togglePromoActive(p)}
-                            className={`px-2 py-0.5 rounded text-sm ${
-                                p.active 
-                                    ? "bg-green-300 hover:bg-green-400 text-green-900" 
-                                    : "bg-gray-300 hover:bg-gray-400 text-gray-800"
-                            }`}
-                        >
-                            {p.active ? "Deactivate" : "Activate"}
-                        </button>
+                        
+                        <div className="flex gap-1">
+                            <button
+                                onClick={() => togglePromoActive(p)}
+                                className={`px-2 py-0.5 rounded text-sm ${
+                                    p.active 
+                                        ? "bg-green-300 hover:bg-green-400 text-green-900" 
+                                        : "bg-gray-300 hover:bg-gray-400 text-gray-800"
+                                }`}
+                            >
+                                {p.active ? "Deactivate" : "Activate"}
+                            </button>
+
+                            {/* DELETE BUTTON */}
+                            <button
+                                onClick={() => {
+                                    if(window.confirm(`Delete "${p.code}"?`)) {
+                                        handleDeletePromo(p.id);
+                                    }
+                                }}
+                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded text-sm transition-colors"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>

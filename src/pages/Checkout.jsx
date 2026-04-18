@@ -54,7 +54,6 @@ export default function Checkout() {
       try {
         const querySnapshot = await getDocs(collection(db, "shippingRates"));
         const rates = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Sort alphabetically by governorate name
         setShippingRates(rates.sort((a, b) => a.governorate.localeCompare(b.governorate)));
       } catch (error) {
         console.error("Error fetching rates:", error);
@@ -67,32 +66,43 @@ export default function Checkout() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    
-    // If governorate changes, update the cost immediately
     if (e.target.name === "governorate") {
         const selected = shippingRates.find(r => r.governorate === e.target.value);
         setCurrentShippingCost(selected ? selected.price : 0);
     }
   };
 
+  // --- FIXED PROMO LOGIC FOR RANDOM IDs ---
   const handleApplyPromo = async () => {
     setPromoError("");
-    if (!promoInput.trim()) return;
+    const input = promoInput.trim();
+    if (!input) return;
+
     try {
-      const q = query(collection(db, "promocodes"), where("code", "==", promoInput.trim()));
+      // Searching field 'code' inside collection 'promocodes'
+      // Checks for exact, lowercase, and uppercase variations
+      const q = query(
+        collection(db, "promocodes"), 
+        where("code", "in", [input, input.toLowerCase(), input.toUpperCase()])
+      );
+      
       const snapshot = await getDocs(q);
+
       if (snapshot.empty) {
         setPromoError("Promo code not found.");
         setAppliedPromo(null);
         return;
       }
+
       const promoDoc = snapshot.docs[0].data();
       if (!promoDoc.active) {
         setPromoError("Promo code is inactive.");
         setAppliedPromo(null);
         return;
       }
-      setAppliedPromo({ code: promoDoc.code, discount: promoDoc.discount });
+
+      setAppliedPromo({ code: promoDoc.code, discount: Number(promoDoc.discount) });
+      setPromoInput("");
     } catch (error) {
       console.error("Error applying promo:", error);
       setPromoError("Failed to apply promo code.");
@@ -137,7 +147,7 @@ export default function Checkout() {
     let validationFailed = false;
 
     try {
-      // --- STOCK VALIDATION (EXACTLY AS YOUR OLD CODE) ---
+      // --- STOCK VALIDATION ---
       for (const item of cart) {
         if (item.isCustomSet) {
           for (const sample of item.selectedSamples) {
@@ -163,7 +173,7 @@ export default function Checkout() {
 
       if (validationFailed) { setLoading(false); return; }
       
-      // --- STOCK DECREMENT (EXACTLY AS YOUR OLD CODE) ---
+      // --- STOCK DECREMENT ---
       for (const item of cart) {
         if (item.isCustomSet) {
           for (const sample of item.selectedSamples) {
@@ -175,7 +185,6 @@ export default function Checkout() {
       }
       await batch.commit();
 
-      // --- PREPARE ORDER DATA ---
       const orderItems = cart.map(item => ({
         id: item.id,
         title: item.title,
@@ -256,7 +265,6 @@ export default function Checkout() {
         <input type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
         <input type="tel" name="phone" placeholder="Phone Number" value={form.phone} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
 
-        {/* --- DYNAMIC GOVERNORATE DROPDOWN WITH PRICES --- */}
         <select
           name="governorate"
           value={form.governorate}
@@ -278,6 +286,8 @@ export default function Checkout() {
           <input type="text" placeholder="Promo code" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 bg-transparent p-2 outline-none text-sm" />
           <button type="button" onClick={handleApplyPromo} className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">Apply</button>
         </div>
+        {promoError && <p className="text-red-500 text-[10px] font-bold uppercase ml-2">{promoError}</p>}
+        {appliedPromo && <p className="text-green-600 text-[10px] font-bold uppercase ml-2">Code Applied!</p>}
         
         <div className="border border-gray-200 p-4 rounded-2xl space-y-4">
           <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Payment Method</h3>
@@ -291,20 +301,39 @@ export default function Checkout() {
           </label>
 
           {paymentMethod === "InstaPay" && (
-            <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
-              <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile: <span className="text-sm select-all">01000775276</span></p>
-              <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">2. Your Transfer Number:</p>
-              <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white" required />
-            </div>
-          )}
+  <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
+    <div className="flex flex-col gap-1">
+      <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile:</p>
+      <div className="flex items-baseline gap-3">
+        <span className="text-2xl font-black text-purple-900">01000775276</span>
+        <button 
+          type="button"
+          onClick={() => navigator.clipboard.writeText("01000775276")}
+          className="text-[10px] font-bold text-purple-600 underline uppercase tracking-widest"
+        >
+          Copy
+        </button>
+      </div>
+    </div>
+    
+    <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter pt-2">2. Your Transfer Number:</p>
+    <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white outline-none" required />
+  </div>
+)}
 
-          <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
-            <input type="radio" checked={paymentMethod === "COD"} onChange={() => setPaymentMethod("COD")} className="hidden" />
-            <div className="flex-1">
-              <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
-            </div>
-          </label>
+<label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
+  {/* REMOVED "hidden" so the circle shows up */}
+  <input 
+    type="radio" 
+    checked={paymentMethod === "COD"} 
+    onChange={() => setPaymentMethod("COD")} 
+    className="w-4 h-4 accent-blue-600" 
+  />
+  <div className="flex-1">
+    <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
+    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
+  </div>
+</label>
         </div>
 
         <div className="bg-gray-100 p-6 rounded-2xl space-y-2 border border-gray-200">
