@@ -72,7 +72,34 @@ const Account = () => {
 
       <div className="container mx-auto max-w-4xl px-4 -mt-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+          {/* Add this inside your container above the stats cards */}
+<div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+  <div className="flex justify-between items-end mb-2">
+    <h3 className="text-sm font-black uppercase text-[#1C3C85]">Reward Progress</h3>
+    <span className="text-[10px] font-bold text-gray-400 uppercase">
+      {orders.length % 5} / 4 Orders toward 30% OFF
+    </span>
+  </div>
+  <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex">
+    {[1, 2, 3, 4].map((step) => (
+      <div 
+        key={step}
+        className={`flex-1 border-r border-white last:border-0 transition-all ${
+          (orders.length % 5) >= step ? 'bg-orange-400' : 'bg-gray-200'
+        }`}
+      />
+    ))}
+  </div>
+  {(orders.length % 5) === 4 ? (
+     <p className="text-[11px] font-bold text-orange-600 uppercase mt-3 italic animate-pulse">
+       🔥 Next order is 30% OFF! Discount will apply at checkout.
+     </p>
+  ) : (
+     <p className="text-[11px] font-bold text-gray-400 uppercase mt-3">
+       Complete 4 orders to unlock a 30% discount on your 5th purchase.
+     </p>
+  )}
+</div>
           {/* Stats Cards */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
             <Package className="text-blue-600 mb-2" />
@@ -80,17 +107,9 @@ const Account = () => {
             <span className="text-[10px] font-bold text-gray-400 uppercase">Total Orders</span>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
-            <Clock className="text-blue-600 mb-2" />
-            <span className="text-2xl font-black italic">Coming Soon</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Loyalty Points</span>
-          </div>
+          
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
-            <Star className="text-blue-600 mb-2" />
-            <span className="text-2xl font-black italic">Bronze</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Tier Status</span>
-          </div>
+          
 
           {/* Recent Orders Section */}
           <div className="md:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

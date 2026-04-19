@@ -14,7 +14,8 @@ import {
   getDocs,
   writeBatch, 
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase"; // Ensure auth is imported
+import { onAuthStateChanged } from "firebase/auth";
 import emailjs from '@emailjs/browser';
 import ReactGA from 'react-ga4';
 
@@ -48,6 +49,10 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("InstaPay");
   const [instapayPhone, setInstapayPhone] = useState(""); 
 
+  // --- LOYALTY STATE ---
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [loyaltyMessage, setLoyaltyMessage] = useState("");
+
   // --- 1. FETCH DYNAMIC SHIPPING RATES ---
   useEffect(() => {
     const fetchRates = async () => {
@@ -64,6 +69,38 @@ export default function Checkout() {
     fetchRates();
   }, []);
 
+  // --- 2. LOYALTY LOGIC: Check previous orders by email ---
+  useEffect(() => {
+    const checkLoyalty = async () => {
+      const emailToCheck = form.email.trim().toLowerCase();
+      if (!emailToCheck) {
+        setLoyaltyDiscount(0);
+        setLoyaltyMessage("");
+        return;
+      }
+
+      try {
+        const q = query(collection(db, "orders"), where("email", "==", emailToCheck));
+        const snap = await getDocs(q);
+        const orderCount = snap.size;
+
+        // Reward every 5th order (4 prev orders, 9 prev orders, etc)
+        if (orderCount > 0 && (orderCount + 1) % 5 === 0) {
+          setLoyaltyDiscount(30);
+          setLoyaltyMessage(`🎉 Loyalty Reward: 30% OFF applied to your order #${orderCount + 1}!`);
+        } else {
+          setLoyaltyDiscount(0);
+          setLoyaltyMessage("");
+        }
+      } catch (err) {
+        console.error("Loyalty Check Error:", err);
+      }
+    };
+
+    const timer = setTimeout(() => checkLoyalty(), 1000); // Debounce check
+    return () => clearTimeout(timer);
+  }, [form.email]);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     if (e.target.name === "governorate") {
@@ -72,15 +109,12 @@ export default function Checkout() {
     }
   };
 
-  // --- FIXED PROMO LOGIC FOR RANDOM IDs ---
   const handleApplyPromo = async () => {
     setPromoError("");
     const input = promoInput.trim();
     if (!input) return;
 
     try {
-      // Searching field 'code' inside collection 'promocodes'
-      // Checks for exact, lowercase, and uppercase variations
       const q = query(
         collection(db, "promocodes"), 
         where("code", "in", [input, input.toLowerCase(), input.toUpperCase()])
@@ -109,12 +143,16 @@ export default function Checkout() {
     }
   };
 
-  // --- TOTALS ---
+  // --- TOTALS CALCULATION ---
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
-  const total = subtotal - discountAmount + currentShippingCost; 
+  const promoDiscountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
   
-  // --- GA4 BEGIN CHECKOUT ---
+  // Calculate Loyalty Discount after promo is applied
+  const subtotalAfterPromo = subtotal - promoDiscountAmount;
+  const loyaltyDiscountAmount = (loyaltyDiscount / 100) * subtotalAfterPromo;
+  
+  const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost; 
+  
   useEffect(() => {
     if (cart.length > 0) {
         ReactGA.event('begin_checkout', {
@@ -147,7 +185,6 @@ export default function Checkout() {
     let validationFailed = false;
 
     try {
-      // --- STOCK VALIDATION ---
       for (const item of cart) {
         if (item.isCustomSet) {
           for (const sample of item.selectedSamples) {
@@ -173,7 +210,6 @@ export default function Checkout() {
 
       if (validationFailed) { setLoading(false); return; }
       
-      // --- STOCK DECREMENT ---
       for (const item of cart) {
         if (item.isCustomSet) {
           for (const sample of item.selectedSamples) {
@@ -201,14 +237,15 @@ export default function Checkout() {
         customerName: fullName, 
         phoneNumber: form.phone,
         governorate: form.governorate,
-        email: form.email,
+        email: form.email.toLowerCase(),
         address: form.address,
         items: orderItems,
         subtotal,
         shipping: currentShippingCost,
-        discount: discountAmount,
+        discount: promoDiscountAmount + loyaltyDiscountAmount, // Combined discount for records
         total,
         promoCode: appliedPromo?.code || null,
+        loyaltyApplied: loyaltyDiscount > 0,
         paymentMethod: paymentMethod, 
         instapayPhone: paymentMethod === "InstaPay" ? instapayPhone.trim() : null,
         createdAt: serverTimestamp(),
@@ -218,7 +255,6 @@ export default function Checkout() {
       const docRef = await addDoc(collection(db, "orders"), orderData);
       const orderId = docRef.id;
 
-      // --- GA4 PURCHASE ---
       ReactGA.event('purchase', {
           transaction_id: orderId,
           value: total,
@@ -228,7 +264,6 @@ export default function Checkout() {
           items: orderItems.map(item => ({ item_id: item.id, item_name: item.title, price: item.price, quantity: item.quantity }))
       });
 
-      // --- EMAILJS ---
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
         customer_name: fullName, 
         customer_email: form.email, 
@@ -289,6 +324,9 @@ export default function Checkout() {
         {promoError && <p className="text-red-500 text-[10px] font-bold uppercase ml-2">{promoError}</p>}
         {appliedPromo && <p className="text-green-600 text-[10px] font-bold uppercase ml-2">Code Applied!</p>}
         
+        {/* Loyalty Message Display */}
+        {loyaltyMessage && <p className="text-orange-600 text-[10px] font-bold uppercase ml-2 animate-pulse">{loyaltyMessage}</p>}
+
         <div className="border border-gray-200 p-4 rounded-2xl space-y-4">
           <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Payment Method</h3>
 
@@ -301,45 +339,44 @@ export default function Checkout() {
           </label>
 
           {paymentMethod === "InstaPay" && (
-  <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
-    <div className="flex flex-col gap-1">
-      <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile:</p>
-      <div className="flex items-baseline gap-3">
-        <span className="text-2xl font-black text-purple-900">01000775276</span>
-        <button 
-          type="button"
-          onClick={() => navigator.clipboard.writeText("01000775276")}
-          className="text-[10px] font-bold text-purple-600 underline uppercase tracking-widest"
-        >
-          Copy
-        </button>
-      </div>
-    </div>
-    
-    <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter pt-2">2. Your Transfer Number:</p>
-    <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white outline-none" required />
-  </div>
-)}
+            <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile:</p>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-2xl font-black text-purple-900">01000775276</span>
+                  <button 
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText("01000775276")}
+                    className="text-[10px] font-bold text-purple-600 underline uppercase tracking-widest"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter pt-2">2. Your Transfer Number:</p>
+              <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white outline-none" required />
+            </div>
+          )}
 
-<label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
-  {/* REMOVED "hidden" so the circle shows up */}
-  <input 
-    type="radio" 
-    checked={paymentMethod === "COD"} 
-    onChange={() => setPaymentMethod("COD")} 
-    className="w-4 h-4 accent-blue-600" 
-  />
-  <div className="flex-1">
-    <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
-    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
-  </div>
-</label>
+          <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
+            <input 
+              type="radio" 
+              checked={paymentMethod === "COD"} 
+              onChange={() => setPaymentMethod("COD")} 
+              className="w-4 h-4 accent-blue-600" 
+            />
+            <div className="flex-1">
+              <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
+            </div>
+          </label>
         </div>
 
         <div className="bg-gray-100 p-6 rounded-2xl space-y-2 border border-gray-200">
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Subtotal</span><span>{subtotal.toFixed(2)} EGP</span></div>
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Shipping</span><span>{currentShippingCost.toFixed(2)} EGP</span></div>
-          {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Discount</span><span>-{discountAmount.toFixed(2)} EGP</span></div>}
+          {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo Discount</span><span>-{promoDiscountAmount.toFixed(2)} EGP</span></div>}
+          {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount (30%)</span><span>-{loyaltyDiscountAmount.toFixed(2)} EGP</span></div>}
           <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toFixed(2)} EGP</span></div>
         </div>
 
