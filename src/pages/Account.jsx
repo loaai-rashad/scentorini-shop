@@ -47,6 +47,14 @@ const Account = () => {
 
   if (!user) return null;
 
+  // --- LOYALTY LOGIC START ---
+  // Filter for ONLY successful orders for progress calculation
+  const successfulOrders = orders.filter(o => 
+    o.status !== "Cancelled" && 
+    o.status !== "Returned"
+  );
+  // --- LOYALTY LOGIC END ---
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12 font-archivo">
       {/* Header Section */}
@@ -72,44 +80,41 @@ const Account = () => {
 
       <div className="container mx-auto max-w-4xl px-4 -mt-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Add this inside your container above the stats cards */}
-<div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-  <div className="flex justify-between items-end mb-2">
-    <h3 className="text-sm font-black uppercase text-[#1C3C85]">Reward Progress</h3>
-    <span className="text-[10px] font-bold text-gray-400 uppercase">
-      {orders.length % 5} / 4 Orders toward 25% OFF
-    </span>
-  </div>
-  <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex">
-    {[1, 2, 3, 4].map((step) => (
-      <div 
-        key={step}
-        className={`flex-1 border-r border-white last:border-0 transition-all ${
-          (orders.length % 5) >= step ? 'bg-orange-400' : 'bg-gray-200'
-        }`}
-      />
-    ))}
-  </div>
-  {(orders.length % 5) === 4 ? (
-     <p className="text-[11px] font-bold text-orange-600 uppercase mt-3 italic animate-pulse">
-       🔥 Next order is 25% OFF! Discount will apply at checkout.
-     </p>
-  ) : (
-     <p className="text-[11px] font-bold text-gray-400 uppercase mt-3">
-       Complete 4 orders to unlock a 25% discount on your 5th purchase.
-     </p>
-  )}
-</div>
-          {/* Stats Cards */}
+          {/* Progress Bar - Uses 'successfulOrders' now */}
+          <div className="md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+            <div className="flex justify-between items-end mb-2">
+              <h3 className="text-sm font-black uppercase text-[#1C3C85]">Reward Progress</h3>
+              <span className="text-[10px] font-bold text-gray-400 uppercase">
+                {successfulOrders.length % 5} / 4 Orders toward 25% OFF
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex">
+              {[1, 2, 3, 4].map((step) => (
+                <div 
+                  key={step}
+                  className={`flex-1 border-r border-white last:border-0 transition-all ${
+                    (successfulOrders.length % 5) >= step ? 'bg-orange-400' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
+            {(successfulOrders.length % 5) === 4 ? (
+               <p className="text-[11px] font-bold text-orange-600 uppercase mt-3 italic animate-pulse">
+                 🔥 Next order is 25% OFF! Discount will apply at checkout.
+               </p>
+            ) : (
+               <p className="text-[11px] font-bold text-gray-400 uppercase mt-3">
+                 Complete 4 orders to unlock a 25% discount on your 5th purchase.
+               </p>
+            )}
+          </div>
+
+          {/* Stats Cards - Shows total history but we could use successfulOrders.length if preferred */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
             <Package className="text-blue-600 mb-2" />
             <span className="text-2xl font-black">{orders.length}</span>
             <span className="text-[10px] font-bold text-gray-400 uppercase">Total Orders</span>
           </div>
-
-          
-
-          
 
           {/* Recent Orders Section */}
           <div className="md:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -132,7 +137,9 @@ const Account = () => {
                     </div>
                     <div className="flex justify-between md:flex-col md:text-right items-center md:items-end">
                       <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${
-                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 
+                        order.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                        order.status === 'Returned' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
                       }`}>
                         {order.status || "Processing"}
                       </span>
