@@ -246,6 +246,7 @@ export default function Checkout() {
         total,
         promoCode: appliedPromo?.code || null,
         loyaltyApplied: loyaltyDiscount > 0,
+        isLoyaltyOrder: loyaltyDiscount > 0, // THE FLAG FOR ADMIN DASHBOARD
         paymentMethod: paymentMethod, 
         instapayPhone: paymentMethod === "InstaPay" ? instapayPhone.trim() : null,
         createdAt: serverTimestamp(),

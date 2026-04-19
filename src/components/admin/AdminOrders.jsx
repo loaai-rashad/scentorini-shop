@@ -75,7 +75,16 @@ export default function AdminOrders({
                                     </td>
                                     <td className="p-4 text-xs font-bold text-gray-500">{order.paymentMethod || "COD"}</td>
                                     <td className="p-4 text-xs font-mono">{order.instapayPhone || "—"}</td>
-                                    <td className="p-4 font-black text-[#1C3C85] whitespace-nowrap">EGP {order.total?.toLocaleString() || "0.00"}</td>
+                                    <td className="p-4 whitespace-nowrap">
+                                        <div className="flex flex-col">
+                                            <span className="font-black text-[#1C3C85]">EGP {order.total?.toLocaleString() || "0.00"}</span>
+                                            {order.isLoyaltyOrder && (
+                                                <span className="text-[8px] font-black bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded mt-1 uppercase tracking-tighter w-fit border border-orange-200">
+                                                    ⭐ Loyalty 25% OFF
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="p-4 relative">
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === order.id ? null : order.id)}
