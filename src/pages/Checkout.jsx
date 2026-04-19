@@ -86,7 +86,7 @@ export default function Checkout() {
 
         // Reward every 5th order (4 prev orders, 9 prev orders, etc)
         if (orderCount > 0 && (orderCount + 1) % 5 === 0) {
-          setLoyaltyDiscount(30);
+          setLoyaltyDiscount(25);
           setLoyaltyMessage(`🎉 Loyalty Reward: 30% OFF applied to your order #${orderCount + 1}!`);
         } else {
           setLoyaltyDiscount(0);
@@ -376,7 +376,7 @@ export default function Checkout() {
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Subtotal</span><span>{subtotal.toFixed(2)} EGP</span></div>
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Shipping</span><span>{currentShippingCost.toFixed(2)} EGP</span></div>
           {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo Discount</span><span>-{promoDiscountAmount.toFixed(2)} EGP</span></div>}
-          {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount (30%)</span><span>-{loyaltyDiscountAmount.toFixed(2)} EGP</span></div>}
+          {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount (25%)</span><span>-{loyaltyDiscountAmount.toFixed(2)} EGP</span></div>}
           <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toFixed(2)} EGP</span></div>
         </div>
 
