@@ -96,12 +96,14 @@ const handleDeleteShippingRate = async (id) => {
     console.error("Error deleting rate:", error);
   }
 };
-  const statuses = ["New", "Packed", "Shipped", "Delivered"];
+  const statuses = ["New", "Packed", "Shipped", "Delivered","Cancelled","Returned"];
   const statusColors = {
     New: "bg-white text-gray-800 border border-gray-300",
     Packed: "bg-yellow-200 text-yellow-800",
     Shipped: "bg-blue-200 text-blue-800",
     Delivered: "bg-green-200 text-green-800",
+    Cancelled: "bg-red-100 text-red-700 border-red-200",
+    Returned: "bg-gray-100 text-gray-700 border-gray-200",
   };
 
   useEffect(() => { 
@@ -433,14 +435,13 @@ const handleDeleteShippingRate = async (id) => {
         return <AdminCustomizableSections />;
       case 'reviews': 
         return <AdminReviews />;
-      case 'inventory': // NEW CASE ADDED
+      case 'inventory': 
         return <AdminInventory />;
-      case 'loyalty': // NEW CASE ADDED FOR LOYAL CUSTOMERS
+      case 'loyalty': 
         return <LoyalCustomers orders={orders} />;
       case 'settings':
   return (
     <div className="space-y-8 font-archivo">
-      {/* 1. Site Announcement Bar (Existing) */}
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Site Announcement Bar</h3>
           <div className="flex flex-col gap-6 max-w-2xl">
@@ -469,7 +470,6 @@ const handleDeleteShippingRate = async (id) => {
           </div>
       </div>
 
-      {/* --- NEW: SHIPPING RATES MANAGER --- */}
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-black uppercase text-[#1C3C85]">Shipping Rates Manager</h3>
@@ -478,7 +478,6 @@ const handleDeleteShippingRate = async (id) => {
               </span>
           </div>
 
-          {/* Quick Add Form */}
           <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-xl mb-6 border border-gray-100">
               <div className="flex-1 min-w-[200px]">
                   <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Governorate Name</label>
@@ -510,7 +509,6 @@ const handleDeleteShippingRate = async (id) => {
               </div>
           </div>
 
-          {/* Rates List */}
           <div className="max-h-[300px] overflow-y-auto border rounded-xl">
               <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-white shadow-sm">
@@ -547,7 +545,6 @@ const handleDeleteShippingRate = async (id) => {
           </div>
       </div>
 
-      {/* 3. Hero Banner Settings (Existing) */}
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Hero Banner Settings</h3>
           <div className="flex flex-col gap-6 max-w-2xl">
@@ -583,13 +580,25 @@ const handleDeleteShippingRate = async (id) => {
     }
   };
 
+  // --- REVENUE LOGIC START ---
   const totalOrders = orders.length;
-  const totalProductRevenue = orders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
-  const totalSales = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  // Filter for ONLY successful orders (excluding Cancelled and Returned)
+  const successfulOrders = orders.filter(o => 
+    o.status !== "Cancelled" && 
+    o.status !== "Returned"
+  );
+
+  // Calculate Revenue based on the successful orders list
+  const totalProductRevenue = successfulOrders.reduce((sum, o) => sum + ((o.subtotal || 0) - (o.discount || 0)), 0); 
+  const totalSales = successfulOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  
+  // Keep individual counts based on ALL orders
   const statusCounts = orders.reduce((acc, o) => {
     acc[o.status || "New"] = (acc[o.status || "New"] || 0) + 1;
     return acc;
   }, {});
+  // --- REVENUE LOGIC END ---
 
   if (loading) return <div className="p-8 text-center">Loading dashboard...</div>;
 
@@ -605,11 +614,11 @@ const handleDeleteShippingRate = async (id) => {
           <h2 className="text-gray-500 text-sm">Total Orders</h2>
           <p className="text-2xl font-bold">{totalOrders}</p>
         </div>
-        <div className="p-4 bg-white shadow rounded">
+        <div className="p-4 bg-white shadow rounded border-b-4 border-red-400">
           <h2 className="text-gray-500 text-sm">Product Revenue</h2>
           <p className="text-2xl font-bold">{totalProductRevenue.toFixed(2)}</p>
         </div>
-        <div className="p-4 bg-white shadow rounded">
+        <div className="p-4 bg-white shadow rounded border-b-4 border-red-500">
           <h2 className="text-gray-500 text-sm">Total Sales</h2> 
           <p className="text-2xl font-bold">{totalSales.toFixed(2)}</p>
         </div>
@@ -632,7 +641,7 @@ const handleDeleteShippingRate = async (id) => {
             { id: 'sections', name: 'Custom Sections' }, 
             { id: 'reviews', name: 'Reviews' },
             { id: 'inventory', name: 'Drop Expenses' },
-            { id: 'loyalty', name: 'Loyalty' }, // ADDED TAB HERE
+            { id: 'loyalty', name: 'Loyalty' }, 
             { id: 'settings', name: 'Site Settings' },
           ].map(tab => (
             <button
