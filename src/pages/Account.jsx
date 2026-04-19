@@ -77,7 +77,7 @@ const Account = () => {
   <div className="flex justify-between items-end mb-2">
     <h3 className="text-sm font-black uppercase text-[#1C3C85]">Reward Progress</h3>
     <span className="text-[10px] font-bold text-gray-400 uppercase">
-      {orders.length % 5} / 4 Orders toward 30% OFF
+      {orders.length % 5} / 4 Orders toward 25% OFF
     </span>
   </div>
   <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex">
