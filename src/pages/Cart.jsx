@@ -3,7 +3,6 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { X, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
 
-// isOpen and onClose will be passed from your Navbar or App.js
 export default function Cart({ isOpen, onClose }) {
   const { cart, removeFromCart, clearCart, incrementQuantity, decrementQuantity } = useCart();
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ export default function Cart({ isOpen, onClose }) {
         {/* Header */}
         <div className="p-6 border-b flex justify-between items-center bg-[#1C3C85] text-white">
           <div className="flex items-center gap-3">
-            <ShoppingBag size={22} className="italic" />
+            <ShoppingBag size={22} />
             <h2 className="text-xl font-black uppercase italic tracking-tighter">Your Bag</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -41,24 +40,25 @@ export default function Cart({ isOpen, onClose }) {
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-gray-400">
               <ShoppingBag size={60} strokeWidth={1} className="mb-4 opacity-20" />
-              <p className="font-bold uppercase text-xs tracking-widest">Scentorini bag is empty</p>
+              <p className="font-bold uppercase text-xs tracking-widest text-center">Your Scentorini bag is empty</p>
               <button 
                 onClick={onClose}
                 className="mt-4 text-[#1C3C85] font-black text-xs uppercase underline underline-offset-4"
               >
-                Start Shopping
+                Continue Shopping
               </button>
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">
               {cart.map((item) => (
                 <li key={item.id} className="p-6 flex gap-4 animate-fadeIn">
-                  {/* PRODUCT IMAGE */}
+                  {/* PRODUCT IMAGE - Updated for Firestore 'images' array */}
                   <div className="w-24 h-28 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
                     <img 
-                      src={item.image} 
+                      src={(item.images && item.images[0]) || item.image || "/images/placeholder.png"} 
                       alt={item.title} 
                       className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = "/images/placeholder.png"; }}
                     />
                   </div>
 
@@ -126,7 +126,6 @@ export default function Cart({ isOpen, onClose }) {
                     EGP {total.toFixed(0)}
                 </span>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold uppercase pb-1">Taxes & Shipping calculated at checkout</p>
             </div>
             
             <div className="flex flex-col gap-3">
