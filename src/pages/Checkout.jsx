@@ -1,3 +1,4 @@
+// src/components/checkout/Checkout.jsx
 import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
@@ -226,6 +227,8 @@ export default function Checkout() {
         title: item.title,
         price: item.price,
         quantity: item.quantity,
+        // --- Added size capture below ---
+        size: item.size || null, 
         ...(item.isCustomSet && { 
             isCustomSet: true, 
             selectedSamples: item.selectedSamples.map(s => s.title),
@@ -275,7 +278,12 @@ export default function Checkout() {
         payment_method: paymentMethod,
         governorate: form.governorate,
         address: form.address,
-        order_details: orderItems.map(item => item.isCustomSet ? `${item.title}: ${item.selectedSamples.join(', ')}` : `${item.title} x ${item.quantity}`).join('\n'), 
+        order_details: orderItems.map(item => {
+            const sizeInfo = item.size ? ` (${item.size})` : "";
+            return item.isCustomSet 
+                ? `${item.title}: ${item.selectedSamples.join(', ')}` 
+                : `${item.title}${sizeInfo} x ${item.quantity}`;
+        }).join('\n'), 
       }, EMAILJS_PUBLIC_KEY);
 
       clearCart();

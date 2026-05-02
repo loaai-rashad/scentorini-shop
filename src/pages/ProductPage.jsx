@@ -31,7 +31,7 @@ const getCleanImages = (productData) => {
 export default function ProductPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
-  const [allProducts, setAllProducts] = useState([]); // Needed for Upsell lookup
+  const [allProducts, setAllProducts] = useState([]); 
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState(false);
@@ -43,7 +43,6 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchProductData = async () => {
       try {
-        // 1. Fetch current product
         const docRef = doc(db, "products", id);
         const docSnap = await getDoc(docRef);
 
@@ -66,7 +65,6 @@ export default function ProductPage() {
           });
         }
 
-        // 2. Fetch all products (to pass to UpsellSection)
         const productsSnap = await getDocs(collection(db, "products"));
         const productsList = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setAllProducts(productsList);
@@ -93,21 +91,32 @@ export default function ProductPage() {
     return () => unsubscribe();
   }, [id]);
 
+  /**
+   * UPDATED: handleAddToCart
+   * This now passes the price and size correctly to match the new CartContext logic.
+   */
   const handleAddToCart = (itemToTarget = null) => {
-    // If itemToTarget is provided (from Upsell), use it; otherwise use main product
     const target = itemToTarget || product;
     
-    const finalPrice = itemToTarget ? Number(itemToTarget.price) : (selectedSize ? Number(selectedSize.price) : Number(product.price));
-    const finalSizeLabel = itemToTarget ? (itemToTarget.subtitle || "Standard") : (selectedSize ? selectedSize.size : (product.subtitle || "Standard"));
+    // Determine the final price based on selection
+    const finalPrice = itemToTarget 
+      ? Number(itemToTarget.price) 
+      : (selectedSize ? Number(selectedSize.price) : Number(product.price));
 
+    // Determine the label for the size
+    const finalSizeLabel = itemToTarget 
+      ? (itemToTarget.subtitle || "Standard") 
+      : (selectedSize ? selectedSize.size : (product.subtitle || "Standard"));
+
+    // Prepare the item object for the cart
     const cartItem = {
       ...target,
       price: finalPrice || 0,
-      selectedSize: finalSizeLabel,
-      cartItemId: `${target.id}-${finalSizeLabel}`
     };
     
-    addToCart(cartItem);
+    // CRITICAL FIX: Pass the size as the SECOND argument to match CartContext
+    addToCart(cartItem, finalSizeLabel);
+    
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -198,7 +207,7 @@ export default function ProductPage() {
                       }
                     `}
                 >
-                    {product.subtitle || "Standard"}
+                   {product.subtitle || "Standard"}
                 </button>
 
                 {product.sizeOptions.map((opt, idx) => (
@@ -265,7 +274,6 @@ export default function ProductPage() {
               </div>
           </div>
 
-          {/* NEW: UPSELL SECTION INTEGRATION */}
           <UpsellSection 
             currentProduct={product} 
             allProducts={allProducts} 
@@ -275,7 +283,6 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Review Sections */}
       <div className="max-w-7xl mx-auto mt-12 border-t border-gray-100 pt-12 pb-20">
         <ReviewSlider title={`Reviews for ${product.title}`} reviews={reviews} />
         <div className="flex justify-center mt-10">

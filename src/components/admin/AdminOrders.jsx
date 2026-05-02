@@ -64,6 +64,12 @@ export default function AdminOrders({
                                         {order.items?.map((item, idx) => (
                                             <div key={idx} className="mb-2 text-[11px] border-b border-gray-100 last:border-0 pb-1">
                                                 <span className="font-bold text-gray-800">{item.title}</span> 
+                                                {/* Displaying Size Badge if it exists */}
+                                                {item.size && (
+                                                    <span className="ml-2 bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border border-gray-200">
+                                                        {item.size}
+                                                    </span>
+                                                )}
                                                 {!item.isCustomSet && <span className="text-blue-600 font-bold ml-1">x{item.quantity}</span>}
                                                 {item.isCustomSet && item.selectedSamples && (
                                                     <div className="text-[10px] text-blue-500 italic mt-0.5">
@@ -96,7 +102,7 @@ export default function AdminOrders({
                                             <div className="absolute z-50 mt-1 bg-white border rounded-xl shadow-2xl w-36 left-0 overflow-hidden">
                                                 {statuses.map(status => (
                                                     <button
-                                                        key={status}
+                                                       key={status}
                                                         onClick={() => handleStatusChange(order.id, status)}
                                                         className="block w-full text-left px-4 py-2 hover:bg-blue-50 text-[10px] font-bold uppercase border-b last:border-0"
                                                     >

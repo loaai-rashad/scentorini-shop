@@ -1,5 +1,6 @@
+// src/context/CartContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
-import ReactGA from 'react-ga4'; // <-- NEW: Import GA4
+import ReactGA from 'react-ga4'; 
 
 const CartContext = createContext();
 
@@ -13,39 +14,43 @@ export function CartProvider({ children }) {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  // Add to cart
-  const addToCart = (product) => {
+  // Add to cart - UPDATED TO HANDLE SIZE
+  const addToCart = (product, selectedSize = null) => {
     
     // --- GA4: Phase 3.1 - ADD TO CART EVENT ---
-    // Prepare item data for GA4 event
     const ga4Item = {
         item_id: product.id,
         item_name: product.title,
         price: product.price,
-        quantity: 1, // Always 1 for this click event
+        quantity: 1,
+        variant: selectedSize // Added size as variant for GA4
     };
 
     ReactGA.event('add_to_cart', {
         currency: "EGP",
-        value: product.price, // Value of the single item added
+        value: product.price, 
         items: [ga4Item]
     });
     // -------------------------------------------
     
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === product.id);
+      // Check for existing item with SAME ID and SAME SIZE
+      const existingItem = prevCart.find(
+        (item) => item.id === product.id && item.size === selectedSize
+      );
+
       if (existingItem) {
-        // If quantity < stock, increment
         if (existingItem.quantity < product.stock) {
           return prevCart.map((item) =>
-            item.id === product.id
+            (item.id === product.id && item.size === selectedSize)
               ? { ...item, quantity: item.quantity + 1 }
               : item
           );
         }
-        return prevCart; // Don't exceed stock
+        return prevCart;
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      // Add as a new item line including the size
+      return [...prevCart, { ...product, quantity: 1, size: selectedSize }];
     });
   };
 
