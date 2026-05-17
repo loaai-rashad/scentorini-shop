@@ -19,12 +19,20 @@ const isValidImageUrl = (url) => {
     return false;
 };
 
+// TARGETED UPDATE: Cleans and aggregates images, checking arrays first and merging legacy string links safely
 const getCleanImages = (productData) => {
+    // 1. Capture the array values from your dashboard file uploads first
     let images = (productData.images && Array.isArray(productData.images) ? productData.images : []);
+    
+    // 2. If an old single image string exists and isn't already inside the list, add it as a fallback
     if (productData.image && !images.includes(productData.image)) {
-        images.unshift(productData.image); 
+        images.push(productData.image); 
     }
+    
+    // 3. Filter out bad strings/undefined values
     const validUrls = images.filter(url => isValidImageUrl(url));
+    
+    // 4. Return an array free of duplicate URL strings
     return [...new Set(validUrls)];
 };
 
@@ -97,7 +105,7 @@ export default function ProductPage() {
    */
   const handleAddToCart = (itemToTarget = null) => {
     const target = itemToTarget || product;
-    
+   
     // Determine the final price based on selection
     const finalPrice = itemToTarget 
       ? Number(itemToTarget.price) 
@@ -294,7 +302,6 @@ export default function ProductPage() {
           </button>
         </div>
       </div>
-
       <ReviewModal 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 

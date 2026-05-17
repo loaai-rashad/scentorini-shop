@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 export default function ProductCard({
   id,
+  image,  // Added back fallback string property explicitly just in case
   images, 
   title,
   subtitle,
@@ -13,8 +14,10 @@ export default function ProductCard({
   className = "",
 }) {
   
-  // LOGIC: Image Selection
-  const mainImageUrl = (images && images.length > 0) ? images[0] : "/perfume.jpeg"; 
+  // LOGIC: Check array first, fallback to single legacy image string next, then fallback to placeholder
+  const mainImageUrl = (images && images.length > 0 && images[0]) 
+    ? images[0] 
+    : (image || "/perfume.jpeg"); 
 
   // LOGIC: Product Type Identification
   const isTester = productFor && String(productFor).toLowerCase() === 'tester';

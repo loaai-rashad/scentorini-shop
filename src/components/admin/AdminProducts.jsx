@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from "../../supabase"; // Added an extra '../' to jump out of 'components' too // Make sure this path correctly points to your supabase.js file
 
 export default function AdminProducts({ 
     products, 
@@ -9,6 +10,8 @@ export default function AdminProducts({
     handleAddProduct, 
     handleDeleteProduct 
 }) {
+    const [uploading, setUploading] = useState(false);
+    const [editUploadingId, setEditUploadingId] = useState(null);
 
     const isValidImageUrl = (url) => {
         if (!url || typeof url !== 'string' || url.length < 5) return false;
@@ -18,6 +21,61 @@ export default function AdminProducts({
     const getMainImageUrl = (product) => {
         const validImages = (product.images || []).filter(url => isValidImageUrl(url));
         return validImages.length > 0 ? validImages[0] : (product.image || "/perfume.jpeg");
+    };
+
+    // --- AUTOMATED SUPABASE UPLOAD CORE HANDLER ---
+    const uploadImageToSupabase = async (file) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+            .from('product-images') // Matches your public Supabase bucket name
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    };
+
+    const handleNewProductImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const publicUrl = await uploadImageToSupabase(file);
+            setNewProduct(prev => ({
+                ...prev,
+                images: [...(prev.images || []), publicUrl]
+            }));
+        } catch (error) {
+            console.error('Error uploading image:', error.message);
+            alert('Upload failed: ' + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleEditProductImageUpload = async (e, productId) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setEditUploadingId(productId);
+        try {
+            const publicUrl = await uploadImageToSupabase(file);
+            const product = products.find(p => p.id === productId);
+            const currentImages = product.images || [];
+            handleProductChange(productId, "images", [...currentImages, publicUrl]);
+        } catch (error) {
+            console.error('Error uploading image:', error.message);
+            alert('Upload failed: ' + error.message);
+        } finally {
+            setEditUploadingId(null);
+        }
     };
 
     // --- SIZE & PRICE HANDLERS ---
@@ -67,15 +125,39 @@ export default function AdminProducts({
             <input type="number" placeholder="Default Price" value={newProduct.price} onChange={e => setNewProduct(prev => ({ ...prev, price: e.target.value }))} className="p-2 border rounded" />
           </div>
 
-          <div className="bg-white p-3 rounded border mb-4">
-            <h4 className="font-bold mb-2 text-gray-700">Sizes & Prices (Optional)</h4>
-            {(newProduct.sizeOptions || []).map((opt, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
-                    <input type="text" placeholder="Size (e.g. 50ml)" value={opt.size} onChange={e => handleSizeValueChange(true, null, idx, 'size', e.target.value)} className="flex-1 p-2 border rounded" />
-                    <input type="number" placeholder="Price (EGP)" value={opt.price} onChange={e => handleSizeValueChange(true, null, idx, 'price', e.target.value)} className="w-32 p-2 border rounded" />
-                </div>
-            ))}
-            <button onClick={() => handleAddSizeOption(true)} className="text-blue-600 font-bold hover:underline text-xs uppercase">+ Add Size Option</button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Supabase Upload Input for New Product */}
+            <div className="bg-white p-3 rounded border">
+                <h4 className="font-bold mb-1 text-gray-700">Upload Product Images</h4>
+                <p className="text-[11px] text-gray-400 mb-2">Upload multiple pictures to build your gallery</p>
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleNewProductImageUpload} 
+                    disabled={uploading}
+                    className="w-full text-xs"
+                />
+                {uploading && <p className="text-xs text-blue-600 font-bold mt-1 animate-pulse">Uploading asset to Supabase...</p>}
+                
+                {newProduct.images && newProduct.images.length > 0 && (
+                    <div className="flex gap-2 flex-wrap mt-3 pt-2 border-t">
+                        {newProduct.images.map((url, i) => (
+                            <img key={i} src={url} className="w-10 h-10 object-cover rounded border" alt="Preview" />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="bg-white p-3 rounded border">
+                <h4 className="font-bold mb-2 text-gray-700">Sizes & Prices (Optional)</h4>
+                {(newProduct.sizeOptions || []).map((opt, idx) => (
+                    <div key={idx} className="flex gap-2 mb-2">
+                        <input type="text" placeholder="Size (e.g. 50ml)" value={opt.size} onChange={e => handleSizeValueChange(true, null, idx, 'size', e.target.value)} className="flex-1 p-2 border rounded" />
+                        <input type="number" placeholder="Price (EGP)" value={opt.price} onChange={e => handleSizeValueChange(true, null, idx, 'price', e.target.value)} className="w-32 p-2 border rounded" />
+                    </div>
+                ))}
+                <button onClick={() => handleAddSizeOption(true)} className="text-blue-600 font-bold hover:underline text-xs uppercase">+ Add Size Option</button>
+            </div>
           </div>
 
           <button onClick={handleAddProduct} className="w-full bg-[#1C3C85] text-white py-2 rounded-lg font-bold hover:bg-[#2e1f88]">
@@ -98,7 +180,7 @@ export default function AdminProducts({
             <tbody>
               {products.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50 border-b align-top">
-                  {/* Column 1: Image & Basic Info */}
+                  {/* Column 1: Image, Basic Info & Supabase File Upload Container */}
                   <td className="p-3 w-64">
                     <div className="flex gap-3 mb-3">
                         <img src={getMainImageUrl(p)} className="w-12 h-12 object-cover rounded shadow-sm" alt="" />
@@ -107,11 +189,26 @@ export default function AdminProducts({
                             <input type="text" value={p.subtitle} onChange={e => handleProductChange(p.id, "subtitle", e.target.value)} className="text-gray-500 text-xs border rounded p-1 w-full" />
                         </div>
                     </div>
+                    
+                    <div className="bg-stone-50 p-2 rounded border border-gray-200 mb-2">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Upload New Image File</label>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={(e) => handleEditProductImageUpload(e, p.id)}
+                            disabled={editUploadingId === p.id}
+                            className="w-full text-[10px]"
+                        />
+                        {editUploadingId === p.id && (
+                            <p className="text-[10px] text-blue-600 font-bold mt-1 animate-pulse">Syncing image...</p>
+                        )}
+                    </div>
+
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Image URLs (one per line)</label>
                     <textarea 
                         value={(p.images || []).join('\n')} 
                         onChange={e => handleProductChange(p.id, "images", e.target.value.split('\n'))}
-                        className="w-full h-20 border rounded p-1 text-[10px] mt-1"
+                        className="w-full h-16 border rounded p-1 text-[10px] mt-1"
                     />
                   </td>
                   
