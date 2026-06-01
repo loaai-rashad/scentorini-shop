@@ -1,5 +1,5 @@
 // src/components/admin/AdminOrders.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export default function AdminOrders({
@@ -13,7 +13,9 @@ export default function AdminOrders({
     handlePromoChange,
     handleDeleteOrder,
 }) {
-    
+    // NEW STATE: Keep track of selected row document IDs
+    const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+
     const formatDate = (timestamp) => {
         if (!timestamp) return "—";
         const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
@@ -26,14 +28,133 @@ export default function AdminOrders({
         });
     };
 
+    // --- NEW SELECTION HANDLERS ---
+    const handleSelectRow = (orderId) => {
+        setSelectedOrderIds(prev =>
+            prev.includes(orderId) 
+                ? prev.filter(id => id !== orderId) 
+                : [...prev, orderId]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedOrderIds.length === orders.length) {
+            setSelectedOrderIds([]);
+        } else {
+            setSelectedOrderIds(orders.map(o => o.id));
+        }
+    };
+
+    // --- NEW AUTOMATED EXCEL EXPORT CORE LOGIC ---
+    const handleExportToExcel = () => {
+        const targetOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+
+        if (targetOrders.length === 0) {
+            alert("Please check at least one order checkbox below to export.");
+            return;
+        }
+
+        // Setup headers matching your tabular column metrics
+        const headers = [
+            "Order ID", "Date", "Customer Name", "Phone Number", 
+            "Governorate", "Full Address", "Purchased Items", 
+            "Payment Method", "InstaPay Payer Phone", "Total Price (EGP)", 
+            "Loyalty Order?", "Order Status", "Applied Promo"
+        ];
+
+        // Format row fields smoothly
+        const rows = targetOrders.map(o => {
+            const itemsString = (o.items || [])
+                .map(item => {
+                    let summary = `${item.title}${item.size ? ` (${item.size})` : ''}`;
+                    if (item.isCustomSet && item.selectedSamples) {
+                        summary += ` [Samples: ${item.selectedSamples.join(', ')}]`;
+                    } else {
+                        summary += ` x${item.quantity || 1}`;
+                    }
+                    return summary;
+                })
+                .join(" | ");
+
+            return [
+                o.id || "",
+                formatDate(o.createdAt),
+                o.customerName || "—",
+                o.phoneNumber || "—",
+                o.governorate || "—",
+                o.address || "—",
+                itemsString || "—",
+                o.paymentMethod || "COD",
+                o.instapayPhone || "—",
+                o.total || 0,
+                o.isLoyaltyOrder ? "YES" : "NO",
+                o.status || "New",
+                o.promoCode || "None"
+            ];
+        });
+
+        // Generate custom XML compliance tags parsed natively by Microsoft Excel
+        let xmlContent = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Scentorini Orders"><Table>`;
+        
+        // Append Headers XML
+        xmlContent += '<Row>';
+        headers.forEach(h => { xmlContent += `<Cell><Data ss:Type="String">${h}</Data></Cell>`; });
+        xmlContent += '</Row>';
+
+        // Append Dynamic Value rows XML
+        rows.forEach(r => {
+            xmlContent += '<Row>';
+            r.forEach((val, idx) => {
+                const type = (idx === 9) ? "Number" : "String"; // Cast order total to numerical value
+                xmlContent += `<Cell><Data ss:Type="${type}">${val}</Data></Cell>`;
+            });
+            xmlContent += '</Row>';
+        });
+
+        xmlContent += '</Table></Worksheet></Workbook>';
+
+        // Download virtual pipeline initialization 
+        const blob = new Blob([xmlContent], { type: "application/vnd.ms-excel" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Scentorini_Orders_Export_${new Date().toISOString().slice(0,10)}.xls`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="p-4 bg-white rounded shadow">
             <h2 className="text-xl font-black font-archivo uppercase mb-4 text-[#1C3C85]">Manage Orders</h2>
             
+            {/* NEW: DYNAMIC EXPORT CONTROL PANEL PANEL BAR */}
+            <div className="flex justify-between items-center mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100 font-archivo">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Selected <strong className="text-[#1C3C85] text-sm">{selectedOrderIds.length}</strong> of {orders.length} Orders
+                </span>
+                <button 
+                    onClick={handleExportToExcel}
+                    className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-opacity-90 shadow-sm transition-all"
+                >
+                    📥 Export Selected ({selectedOrderIds.length}) to Excel
+                </button>
+            </div>
+
             <div className="overflow-x-auto border rounded-lg">
                 <table className="min-w-full table-auto border-collapse">
                     <thead className="bg-gray-100 font-archivo text-[10px] uppercase tracking-widest text-gray-600">
                         <tr>
+                            {/* Checkbox Master Row Toggler Head Cell */}
+                            <th className="p-4 text-center border-b w-10">
+                                <input 
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-[#1C3C85] focus:ring-[#1C3C85] cursor-pointer w-4 h-4 mt-1"
+                                    checked={orders.length > 0 && selectedOrderIds.length === orders.length}
+                                    onChange={handleSelectAll}
+                                />
+                            </th>
                             <th className="p-4 text-left border-b whitespace-nowrap">Order ID</th>
                             <th className="p-4 text-left border-b whitespace-nowrap">Date</th>
                             <th className="p-4 text-left border-b whitespace-nowrap">Customer</th>
@@ -52,8 +173,18 @@ export default function AdminOrders({
                     <tbody className="text-sm">
                         {orders.map(order => {
                             const currentStatus = order.status || "New";
+                            const isSelected = selectedOrderIds.includes(order.id);
                             return (
-                                <tr key={order.id} className="hover:bg-blue-50/30 border-b transition-colors">
+                                <tr key={order.id} className={`border-b transition-colors ${isSelected ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-blue-50/30'}`}>
+                                    {/* Single Row Item Checkbox Switch Cell */}
+                                    <td className="p-4 text-center">
+                                        <input 
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-[#1C3C85] focus:ring-[#1C3C85] cursor-pointer w-4 h-4"
+                                            checked={isSelected}
+                                            onChange={() => handleSelectRow(order.id)}
+                                        />
+                                    </td>
                                     <td className="p-4 font-mono text-[11px] text-gray-600 break-all select-all">{order.id}</td>
                                     <td className="p-4 whitespace-nowrap text-gray-700">{formatDate(order.createdAt)}</td>
                                     <td className="p-4 font-bold whitespace-nowrap">{order.customerName || "—"}</td>
