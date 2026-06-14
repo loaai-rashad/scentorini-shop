@@ -1,29 +1,60 @@
 // src/components/ProductCard.jsx
+import { useState, type MouseEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { ShoppingCart, Check } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 export default function ProductCard({
   id,
   image,  // Added back fallback string property explicitly just in case
-  images, 
+  images,
   title,
   subtitle,
   price,
-  stock = 0, 
-  for: productFor, 
+  stock = 0,
+  for: productFor,
   className = "",
 }) {
-  
+  const { addToCart } = useCart();
+  const [justAdded, setJustAdded] = useState(false);
+
   // LOGIC: Check array first, fallback to single legacy image string next, then fallback to placeholder
-  const mainImageUrl = (images && images.length > 0 && images[0]) 
-    ? images[0] 
-    : (image || "/perfume.jpeg"); 
+  const mainImageUrl = (images && images.length > 0 && images[0])
+    ? images[0]
+    : (image || "/perfume.jpeg");
 
   // LOGIC: Product Type Identification
   const isTester = productFor && String(productFor).toLowerCase() === 'tester';
-  
+
   // LOGIC: Routing Path Determination
-  const path = isTester ? `/testers/builder` : `/products/${id}`;    
+  const path = isTester ? `/testers/builder` : `/products/${id}`;
+
+  // LOGIC: Add to cart directly from the card without navigating to the product page
+  const handleAddToCart = (e: MouseEvent<HTMLButtonElement>) => {
+    // Card is wrapped in a <Link>; stop the click from triggering navigation
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (stock <= 0) return;
+
+    const product = {
+      id,
+      title,
+      subtitle,
+      price: Number(price) || 0,
+      stock,
+      image,
+      images,
+      for: productFor,
+    };
+
+    // Pass subtitle as the default size/variant label, matching ProductPage behaviour
+    addToCart(product, subtitle || "Standard");
+
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1500);
+  };
 
   return (
     <Link to={path} className="w-full block h-full"> 
@@ -61,7 +92,7 @@ export default function ProductCard({
           </div>
 
           {/* LOGIC: Conditional Price/Availability Display */}
-          <div className="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
+          <div className="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center gap-2">
             {stock > 0 ? (
               <span className="text-sm md:text-base font-extrabold text-[#1C3C85]">
                 {isTester ? `From EGP ${price}` : `EGP ${price.toLocaleString()}`}
@@ -70,6 +101,30 @@ export default function ProductCard({
               <span className="text-red-600 font-bold text-xs uppercase">
                 Unavailable
               </span>
+            )}
+
+            {/* LOGIC: Testers route to a builder page, so no direct add-to-cart there */}
+            {!isTester && (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={stock <= 0}
+                aria-label={`Add ${title} to cart`}
+                title={stock <= 0 ? "Out of stock" : "Add to cart"}
+                className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+                  stock <= 0
+                    ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    : justAdded
+                    ? "bg-emerald-500 text-white"
+                    : "bg-[#1C3C85] text-white hover:bg-[#142d63]"
+                }`}
+              >
+                {justAdded ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <ShoppingCart className="w-4 h-4" />
+                )}
+              </button>
             )}
           </div>
         </div>

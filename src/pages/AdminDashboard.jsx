@@ -15,6 +15,7 @@ import {
   deleteField, 
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
 
 // Import modular components
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
   
   const [announcement, setAnnouncement] = useState({ text: '', enabled: false });
   const [heroSettings, setHeroSettings] = useState({ imageUrl: '', active: true });
+  const [heroUploading, setHeroUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('orders'); 
   
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
@@ -199,6 +201,36 @@ const handleDeleteShippingRate = async (id) => {
     } catch (error) {
         console.error("Error saving announcement:", error);
         alert("Failed to save.");
+    }
+  };
+
+  // Uploads the selected file to Supabase storage (same 'product-images' bucket
+  // used in AdminProducts) and stores the returned public URL on heroSettings.
+  const handleHeroImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setHeroUploading(true);
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `hero_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(fileName);
+
+        setHeroSettings(prev => ({ ...prev, imageUrl: data.publicUrl }));
+    } catch (error) {
+        console.error('Error uploading hero image:', error.message);
+        alert('Upload failed: ' + error.message);
+    } finally {
+        setHeroUploading(false);
     }
   };
 
@@ -549,16 +581,31 @@ const handleDeleteShippingRate = async (id) => {
           <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Hero Banner Settings</h3>
           <div className="flex flex-col gap-6 max-w-2xl">
             <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Upload Banner Image</label>
+                <label className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest shadow-lg cursor-pointer transition-colors ${heroUploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1C3C85] text-white hover:bg-blue-800'}`}>
+                    {heroUploading ? 'Uploading...' : 'Choose Image'}
+                    <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeroImageUpload}
+                    disabled={heroUploading}
+                    className="hidden"
+                    />
+                </label>
+                <p className="text-[10px] text-gray-400 mt-2">Uploads to Supabase storage. You can also paste a URL manually below.</p>
+            </div>
+
+            <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Banner Image URL</label>
-                <input 
-                type="text" 
-                value={heroSettings.imageUrl} 
+                <input
+                type="text"
+                value={heroSettings.imageUrl}
                 onChange={(e) => setHeroSettings({...heroSettings, imageUrl: e.target.value})}
                 className="w-full p-4 border rounded-xl font-bold text-sm bg-gray-50 focus:ring-2 focus:ring-[#1C3C85] outline-none"
                 placeholder="e.g. /images/hero.jpg or https://image-url.com"
                 />
             </div>
-            
+
             {heroSettings.imageUrl && (
                 <div className="mt-2">
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Image Preview</label>

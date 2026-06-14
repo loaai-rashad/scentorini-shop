@@ -16,7 +16,11 @@ export default function HeroBanner() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "siteSettings", "hero"), (docSnap) => {
         if (docSnap.exists()) {
-            setHeroData(docSnap.data());
+            const data = docSnap.data();
+            // Only swap the image if a real URL was saved, otherwise keep the default
+            if (data.imageUrl) {
+                setHeroData(data);
+            }
         }
     });
     return () => unsub();
@@ -27,18 +31,17 @@ export default function HeroBanner() {
   };
 
   return (
-    <div className="relative w-full h-[400px] md:h-[500px] lg:h-[450px] overflow-hidden rounded-2xl shadow-xl mb-8">
+    <div className="relative w-full h-[460px] md:h-[580px] lg:h-[600px] overflow-hidden rounded-2xl shadow-xl mb-8">
 
         {/* The Dynamic Background Image from Dashboard */}
         <img
-            src={heroData.imageUrl} 
+            src={heroData.imageUrl}
             alt="Scentorini Featured Collection"
             className="
-                w-full 
-                h-full 
-                object-cover 
-                lg:object-contain 
-                object-center 
+                w-full
+                h-full
+                object-cover
+                object-center
                 transition-opacity duration-700
             "
         />
