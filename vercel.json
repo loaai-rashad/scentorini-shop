@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/products/:id", "destination": "/api/product-og?id=:id" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
