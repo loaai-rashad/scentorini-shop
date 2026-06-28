@@ -2,7 +2,7 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import { motion } from 'framer-motion'; // 1. Import motion
 
-export default function ReviewSlider({ title = "Customer Stories", reviews }) {
+export default function ReviewSlider({ title = null, reviews }) {
   if (!reviews || reviews.length === 0) return null;
   const PADDING_CLASSES = "px-4 sm:px-8 lg:px-12";
 
@@ -32,9 +32,11 @@ export default function ReviewSlider({ title = "Customer Stories", reviews }) {
       viewport={{ once: true, amount: 0.2 }}
       variants={containerVariants}
     >
-      <h2 className={`text-2xl font-archivo font-black uppercase text-center mb-6 tracking-tighter text-[#1C3C85] pb-4 ${PADDING_CLASSES}`}>
-        {title}
-      </h2>
+      {title && (
+        <h2 className={`text-2xl font-archivo font-black uppercase text-center mb-6 tracking-tighter text-[#1C3C85] pb-4 ${PADDING_CLASSES}`}>
+          {title}
+        </h2>
+      )}
 
       <div className="overflow-x-scroll no-scrollbar" style={{ scrollbarWidth: 'none' }}>
         <motion.div className={`flex ${PADDING_CLASSES} space-x-6 pb-6`}>

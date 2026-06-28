@@ -29,6 +29,8 @@ import AdminReviews from '../components/admin/AdminReviews';
 
 import AdminInventory from '../components/admin/AdminInventory';
 import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
+import { toast, confirmDialog, Toaster, ConfirmHost } from '../components/admin/ui/notify';
+import { AlertTriangle } from 'lucide-react';
 
 export default function AdminDashboard() {
   // --- STATE ---
@@ -78,24 +80,28 @@ useEffect(() => {
 
 // Handlers
 const handleAddShippingRate = async () => {
-  if (!newRate.governorate || !newRate.price) return alert("Fill both fields");
+  if (!newRate.governorate || !newRate.price) return toast.error("Fill in both fields.");
   try {
     await addDoc(collection(db, "shippingRates"), {
       governorate: newRate.governorate.trim(),
       price: parseFloat(newRate.price)
     });
     setNewRate({ governorate: '', price: '' });
+    toast.success("Shipping rate added.");
   } catch (error) {
     console.error("Error adding rate:", error);
+    toast.error("Failed to add shipping rate.");
   }
 };
 
 const handleDeleteShippingRate = async (id) => {
-  if (!window.confirm("Delete this shipping rate?")) return;
+  if (!(await confirmDialog("Delete this shipping rate?"))) return;
   try {
     await deleteDoc(doc(db, "shippingRates", id));
+    toast.success("Shipping rate deleted.");
   } catch (error) {
     console.error("Error deleting rate:", error);
+    toast.error("Failed to delete shipping rate.");
   }
 };
   const statuses = ["New", "Packed", "Shipped", "Delivered","Cancelled","Returned"];
@@ -197,10 +203,10 @@ const handleDeleteShippingRate = async (id) => {
     try {
         const docRef = doc(db, "siteSettings", "announcement");
         await setDoc(docRef, announcement);
-        alert("Announcement Bar updated!");
+        toast.success("Announcement bar updated!");
     } catch (error) {
         console.error("Error saving announcement:", error);
-        alert("Failed to save.");
+        toast.error("Failed to save announcement.");
     }
   };
 
@@ -226,9 +232,10 @@ const handleDeleteShippingRate = async (id) => {
             .getPublicUrl(fileName);
 
         setHeroSettings(prev => ({ ...prev, imageUrl: data.publicUrl }));
+        toast.success("Image uploaded.");
     } catch (error) {
         console.error('Error uploading hero image:', error.message);
-        alert('Upload failed: ' + error.message);
+        toast.error('Upload failed: ' + error.message);
     } finally {
         setHeroUploading(false);
     }
@@ -238,10 +245,10 @@ const handleDeleteShippingRate = async (id) => {
     try {
         const docRef = doc(db, "siteSettings", "hero");
         await setDoc(docRef, heroSettings);
-        alert("Hero Banner updated successfully!");
+        toast.success("Hero banner updated!");
     } catch (error) {
         console.error("Error saving hero settings:", error);
-        alert("Failed to save hero settings.");
+        toast.error("Failed to save hero settings.");
     }
   };
 
@@ -250,9 +257,10 @@ const handleDeleteShippingRate = async (id) => {
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, { status: newStatus });
       setOpenDropdown(null);
+      toast.success(`Status set to ${newStatus}.`);
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update status.");
+      toast.error("Failed to update status.");
     }
   };
 
@@ -261,25 +269,27 @@ const handleDeleteShippingRate = async (id) => {
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, { promoCode });
       setOpenDropdown(null);
+      toast.success("Promo updated.");
     } catch (error) {
       console.error("Error updating promo code:", error);
-      alert("Failed to update promo code.");
+      toast.error("Failed to update promo code.");
     }
   };
 
+  // Confirmation is handled in AdminOrders before this is called.
   const handleDeleteOrder = async id => {
-    if (!window.confirm("Are you sure you want to delete this order?")) return;
     try {
      await deleteDoc(doc(db, "orders", id));
       setOrders(prev => prev.filter(o => o.id !== id));
+      toast.success("Order deleted.");
     } catch (error) {
       console.error("Failed to delete order:", error);
-      alert("Failed to delete order. Please try again.");
+      toast.error("Failed to delete order. Please try again.");
     }
   };
 
   const handleCreatePromo = async () => {
-    if (!newPromo.code || !newPromo.discount) return alert("Enter code and discount");
+    if (!newPromo.code || !newPromo.discount) return toast.error("Enter a code and discount.");
     try {
       await addDoc(collection(db, "promocodes"), {
         code: newPromo.code,
@@ -289,9 +299,10 @@ const handleDeleteShippingRate = async (id) => {
       setNewPromo({ code: "", discount: "" });
       const promoSnap = await getDocs(collection(db, "promocodes"));
       setPromoCodes(promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      toast.success("Promo code created.");
     } catch (error) {
       console.error("Error creating promo:", error);
-      alert("Failed to create promo code");
+      toast.error("Failed to create promo code.");
     }
   };
 
@@ -304,19 +315,21 @@ const handleDeleteShippingRate = async (id) => {
       );
     } catch (error) {
       console.error("Error toggling promo:", error);
-      alert("Failed to toggle promo code");
+      toast.error("Failed to toggle promo code.");
     }
   };
-  
+
+  // Confirmation is handled in AdminPromos before this is called.
   const handleDeletePromo = async (id) => {
     try {
       const promoRef = doc(db, "promocodes", id);
       await deleteDoc(promoRef);
       // Update the local state so the UI removes it immediately
       setPromoCodes(prev => prev.filter(p => p.id !== id));
+      toast.success("Promo code deleted.");
     } catch (error) {
       console.error("Error deleting promo:", error);
-      alert("Failed to delete promo code");
+      toast.error("Failed to delete promo code.");
     }
   };
 
@@ -347,18 +360,18 @@ const handleDeleteShippingRate = async (id) => {
         description: product.description,
         for: product.for, 
         inspiredBy: product.inspiredBy || "", 
-        sizeOptions: cleanedSizes 
+        sizeOptions: cleanedSizes
       });
-      alert("Product updated successfully!");
+      toast.success("Product updated!");
     } catch (error) {
       console.error("Error updating product:", error);
-      alert("Failed to update product.");
+      toast.error("Failed to update product.");
     }
   };
 
   const handleAddProduct = async () => {
     if (!newProduct.title || !newProduct.for)
-      return alert("Title and 'For' field are required.");
+      return toast.error("Title and 'For' field are required.");
     try {
       const imagesToSave = (newProduct.images || []).filter(url => url && url.length > 0).map(url => url.trim()); 
       
@@ -384,22 +397,23 @@ const handleDeleteShippingRate = async (id) => {
        description: "", 
         for: "", 
         inspiredBy: "", 
-        sizeOptions: [] 
+        sizeOptions: []
       });
-      alert("Product added successfully!");
+      toast.success("Product added!");
     } catch (error) {
       console.error("Error adding product:", error);
-      alert("Failed to add product.");
+      toast.error("Failed to add product.");
     }
   };
 
   const handleDeleteProduct = async id => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    if (!(await confirmDialog({ title: "Delete product", message: "This permanently removes the product.", confirmText: "Delete" }))) return;
     try {
       await deleteDoc(doc(db, "products", id));
+      toast.success("Product deleted.");
     } catch (error) {
       console.error("Error deleting product:", error);
-      alert("Failed to delete product.");
+      toast.error("Failed to delete product.");
     }
   };
 
@@ -416,38 +430,40 @@ const handleDeleteShippingRate = async (id) => {
         price: parseFloat(sample.price) || 0,
         stock: parseInt(sample.stock) || 0,
       });
-      alert("Sample updated successfully!");
+      toast.success("Sample updated!");
     } catch (error) {
       console.error("Error updating sample:", error);
-      alert("Failed to update sample.");
+      toast.error("Failed to update sample.");
     }
   };
 
   const handleAddSample = async () => {
-    if (!newSample.title || !newSample.price) return alert("Title and price are required.");
+    if (!newSample.title || !newSample.price) return toast.error("Title and price are required.");
     try {
       const q = query(collection(db, "samples"), where("title", "==", newSample.title.trim()));
       const snapshot = await getDocs(q);
-      if (!snapshot.empty) return alert("A sample with this title already exists.");
+      if (!snapshot.empty) return toast.error("A sample with this title already exists.");
       await addDoc(collection(db, "samples"), {
         title: newSample.title.trim(),
         price: parseFloat(newSample.price) || 0,
         stock: parseInt(newSample.stock) || 0,
       });
       setNewSample({ title: "", price: "", stock: "" });
+      toast.success("Sample added!");
     } catch (error) {
       console.error("Error adding sample:", error);
-      alert("Failed to add sample.");
+      toast.error("Failed to add sample.");
     }
   };
 
   const handleDeleteSample = async id => {
-    if (!window.confirm("Are you sure you want to delete this sample?")) return;
+    if (!(await confirmDialog({ title: "Delete sample", message: "This permanently removes the sample.", confirmText: "Delete" }))) return;
     try {
       await deleteDoc(doc(db, "samples", id));
+      toast.success("Sample deleted.");
     } catch (error) {
       console.error("Error deleting sample:", error);
-      alert("Failed to delete sample.");
+      toast.error("Failed to delete sample.");
     }
   };
   
@@ -647,36 +663,78 @@ const handleDeleteShippingRate = async (id) => {
   }, {});
   // --- REVENUE LOGIC END ---
 
+  // --- LOW STOCK ALERT ---
+  const LOW_STOCK_THRESHOLD = 5;
+  const lowStockProducts = products
+    .filter(p => String(p.for).toLowerCase() !== "tester")
+    .filter(p => Number(p.stock) <= LOW_STOCK_THRESHOLD)
+    .sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+
+  const fmt = (n) => `EGP ${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
   if (loading) return <div className="p-8 text-center">Loading dashboard...</div>;
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</button>
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-archivo">
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-[#1C3C85]">Admin Dashboard</h1>
+        <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-red-700 transition">Logout</button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6"> 
-        <div className="p-4 bg-white shadow rounded">
-          <h2 className="text-gray-500 text-sm">Total Orders</h2>
-          <p className="text-2xl font-bold">{totalOrders}</p>
+      {/* Headline KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="p-5 bg-white shadow-sm rounded-2xl border border-gray-100">
+          <h2 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Orders</h2>
+          <p className="text-3xl font-black text-gray-900 mt-1">{totalOrders}</p>
         </div>
-        <div className="p-4 bg-white shadow rounded border-b-4 border-red-400">
-          <h2 className="text-gray-500 text-sm">Product Revenue</h2>
-          <p className="text-2xl font-bold">{totalProductRevenue.toFixed(2)}</p>
+        <div className="p-5 bg-white shadow-sm rounded-2xl border border-gray-100 border-l-4 border-l-[#1C3C85]">
+          <h2 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Product Revenue</h2>
+          <p className="text-2xl md:text-3xl font-black text-[#1C3C85] mt-1">{fmt(totalProductRevenue)}</p>
         </div>
-        <div className="p-4 bg-white shadow rounded border-b-4 border-red-500">
-          <h2 className="text-gray-500 text-sm">Total Sales</h2> 
-          <p className="text-2xl font-bold">{totalSales.toFixed(2)}</p>
+        <div className="p-5 bg-white shadow-sm rounded-2xl border border-gray-100 border-l-4 border-l-emerald-500 col-span-2 lg:col-span-1">
+          <h2 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Total Sales</h2>
+          <p className="text-2xl md:text-3xl font-black text-emerald-600 mt-1">{fmt(totalSales)}</p>
         </div>
+      </div>
+
+      {/* Status counts */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {statuses.map(status => (
-          <div key={status} className={`p-4 shadow rounded ${statusColors[status]} col-span-1`}> 
-            <h2 className="text-gray-500 text-sm whitespace-nowrap">{status} Orders</h2>
-            <p className="text-2xl font-bold">{statusCounts[status] || 0}</p>
+          <div key={status} className={`p-3 rounded-xl text-center ${statusColors[status]}`}>
+            <h2 className="text-[9px] font-black uppercase tracking-wide opacity-70">{status}</h2>
+            <p className="text-xl font-black">{statusCounts[status] || 0}</p>
           </div>
         ))}
       </div>
-      
+
+      {/* Low-stock alert widget */}
+      {lowStockProducts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-tight text-amber-700">
+              <AlertTriangle className="w-4 h-4" />
+              Low Stock — {lowStockProducts.length} product{lowStockProducts.length > 1 ? "s" : ""}
+            </h3>
+            <button onClick={() => setActiveTab("products")} className="text-[10px] font-black uppercase tracking-widest text-amber-700 underline underline-offset-2">
+              Manage
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {lowStockProducts.slice(0, 12).map(p => (
+              <span key={p.id} className="flex items-center gap-1.5 bg-white border border-amber-200 rounded-full px-3 py-1 text-xs font-bold text-gray-700">
+                {p.title}
+                <span className={`font-black ${Number(p.stock) <= 0 ? "text-red-600" : "text-amber-600"}`}>
+                  {Number(p.stock) <= 0 ? "OUT" : p.stock}
+                </span>
+              </span>
+            ))}
+            {lowStockProducts.length > 12 && (
+              <span className="text-xs font-bold text-amber-600 self-center">+{lowStockProducts.length - 12} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="border-b border-gray-200 overflow-x-auto">
         <nav className="-mb-px flex space-x-8">
           {[
@@ -694,7 +752,7 @@ const handleDeleteShippingRate = async (id) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+              className={`whitespace-nowrap py-3 px-1 border-b-2 font-bold uppercase tracking-tight text-sm transition-colors ${activeTab === tab.id ? 'border-[#1C3C85] text-[#1C3C85]' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
             >
               {tab.name}
             </button>
@@ -703,6 +761,10 @@ const handleDeleteShippingRate = async (id) => {
       </div>
       
       <div className="mt-6">{renderContent()}</div>
+
+      {/* Toast + confirm hosts for the whole admin area */}
+      <Toaster />
+      <ConfirmHost />
     </div>
   );
 }

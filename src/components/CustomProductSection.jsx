@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import ProductCard from './ProductCard'; 
+import ProductCard from './ProductCard';
+import SectionHeading from './SectionHeading';
 import { motion } from 'framer-motion';
 
 export default function CustomProductSection({ sectionConfig }) {
@@ -69,34 +70,33 @@ export default function CustomProductSection({ sectionConfig }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="px-4 md:px-8 py-4 max-w-7xl mx-auto my-4 md:my-8"
+      className="px-4 md:px-8 py-14 md:py-20 max-w-7xl mx-auto"
     >
-      <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-8 md:mb-10 whitespace-nowrap">
-        {title}
-      </h2>
-      
+      <SectionHeading eyebrow="The Collection" title={title} />
+
       {/* Scroll Wrapper */}
       <div className="w-full overflow-x-auto custom-scrollbar pb-6">
-        {/* Centering Wrapper: 
-            If products < 4, it centers them. 
+        {/* Centering Wrapper:
+            If products < 4, it centers them.
             If more, it allows them to take their natural width for scrolling. */}
-        <div 
+        <div
           className={`
             flex gap-6 min-w-full w-max mx-auto
             ${products.length < 4 ? 'justify-center' : 'justify-start px-4'}
           `}
         >
           {products.map((product) => (
-            <div key={product.id} className="flex-shrink-0 w-64"> 
-              <ProductCard 
+            <div key={product.id} className="flex-shrink-0 w-64 md:w-72">
+              <ProductCard
                   id={product.id}
                   images={product.images}
                   title={product.title}
                   subtitle={product.subtitle}
                   price={product.price}
                   stock={product.stock}
+                  inspiredBy={product.inspiredBy}
                   for={product.for}
-              /> 
+              />
             </div>
           ))}
         </div>

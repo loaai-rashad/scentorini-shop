@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts';
+import { toast } from './ui/notify';
 
 export default function AdminInsights() {
     const [monthlyData, setMonthlyData] = useState([]);
@@ -23,10 +24,10 @@ export default function AdminInsights() {
                 pairings: upsellMap,
                 lastUpdated: new Date()
             });
-            alert("Scentorini Upsell logic synced successfully!");
+            toast.success("Upsell logic synced successfully!");
         } catch (error) {
             console.error("Sync Error:", error);
-            alert("Failed to sync upsell data.");
+            toast.error("Failed to sync upsell data.");
         } finally {
             setSyncing(false);
         }
@@ -59,7 +60,9 @@ export default function AdminInsights() {
 
                     const netRevenue = (order.subtotal || 0) - (order.discount || 0);
                     totalRevenue += netRevenue;
-                    if (order.customerEmail) customerEmails.push(order.customerEmail);
+                    // Orders store the buyer address under `email` (fall back to legacy fields)
+                    const buyerEmail = order.email || order.customerEmail;
+                    if (buyerEmail) customerEmails.push(String(buyerEmail).toLowerCase());
 
                     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                     if (!monthAgg[monthKey]) {

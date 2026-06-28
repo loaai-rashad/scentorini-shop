@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, Timestamp, addDoc, updateDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { toast } from './ui/notify';
 
 export default function AdminInventory() {
     const [allDrops, setAllDrops] = useState([]);
@@ -43,7 +44,7 @@ export default function AdminInventory() {
 
     // 3. The Net Profit Logic
     const calculateNetProfit = async () => {
-        if (!startDate || !endDate) return alert("Please select the date range for this drop.");
+        if (!startDate || !endDate) return toast.error("Please select the date range for this drop.");
         setIsLoading(true);
         
         try {
@@ -74,7 +75,7 @@ export default function AdminInventory() {
     };
 
     const handleSaveOrUpdate = async () => {
-        if (!dropName) return alert("Name your drop first!");
+        if (!dropName) return toast.error("Name your drop first!");
         const totalSpent = items.reduce((acc, item) => acc + (Number(item.qty) * Number(item.price)), 0);
         
         const data = {
@@ -88,10 +89,10 @@ export default function AdminInventory() {
 
         if (currentDropId) {
             await updateDoc(doc(db, "inventory_drops", currentDropId), data);
-            alert("Drop updated!");
+            toast.success("Drop updated!");
         } else {
             await addDoc(collection(db, "inventory_drops"), { ...data, createdAt: Timestamp.now() });
-            alert("New drop saved!");
+            toast.success("New drop saved!");
         }
         fetchDrops();
     };

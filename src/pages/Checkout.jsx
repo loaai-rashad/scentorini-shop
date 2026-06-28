@@ -19,6 +19,7 @@ import { auth, db } from "../firebase"; // Ensure auth is imported
 import { onAuthStateChanged } from "firebase/auth";
 import emailjs from '@emailjs/browser';
 import ReactGA from 'react-ga4';
+import { ShieldCheck, BadgeCheck, Truck } from "lucide-react";
 
 const EMAILJS_SERVICE_ID = 'service_gl98ck9';
 const EMAILJS_TEMPLATE_ID = 'template_y2k0ghw';
@@ -48,7 +49,8 @@ export default function Checkout() {
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("InstaPay");
-  const [instapayPhone, setInstapayPhone] = useState(""); 
+  const [instapayPhone, setInstapayPhone] = useState("");
+  const [formError, setFormError] = useState("");
 
   // --- LOYALTY STATE ---
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
@@ -151,8 +153,8 @@ export default function Checkout() {
   // Calculate Loyalty Discount after promo is applied
   const subtotalAfterPromo = subtotal - promoDiscountAmount;
   const loyaltyDiscountAmount = (loyaltyDiscount / 100) * subtotalAfterPromo;
-  
-  const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost; 
+
+  const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost;
   
   useEffect(() => {
     if (cart.length > 0) {
@@ -171,14 +173,20 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
     if (!firstName.trim() || !lastName.trim() || !form.phone || !form.governorate || !form.address || !form.email) {
-      return alert("Please fill in all required fields.");
+      setFormError("Please fill in all required fields.");
+      return;
     }
-    if (!cart.length) return alert("Your cart is empty.");
+    if (!cart.length) {
+      setFormError("Your cart is empty.");
+      return;
+    }
     if (paymentMethod === "InstaPay" && !instapayPhone.trim()) {
-      return alert("Please enter your InstaPay mobile number.");
+      setFormError("Please enter your InstaPay mobile number.");
+      return;
     }
 
     setLoading(true);
@@ -192,7 +200,7 @@ export default function Checkout() {
             const sampleRef = doc(db, "samples", sample.docId);
             const sampleSnap = await getDoc(sampleRef);
             if (!sampleSnap.exists() || sampleSnap.data().stock < 1) {
-              alert(`Not enough stock for Discovery Sample: "${sample.title}".`);
+              setFormError(`Sorry, "${sample.title}" just went out of stock. Please adjust your set.`);
               validationFailed = true;
               break;
             }
@@ -201,7 +209,7 @@ export default function Checkout() {
           const productRef = doc(db, "products", item.id);
           const productSnap = await getDoc(productRef);
           if (!productSnap.exists() || productSnap.data().stock < item.quantity) {
-            alert(`Not enough stock for "${item.title}".`);
+            setFormError(`Sorry, "${item.title}" doesn't have enough stock. Please adjust the quantity.`);
             validationFailed = true;
             break;
           }
@@ -263,7 +271,7 @@ export default function Checkout() {
           transaction_id: orderId,
           value: total,
           shipping: currentShippingCost,
-          currency: "EGP", 
+          currency: "EGP",
           coupon: appliedPromo?.code || undefined,
           items: orderItems.map(item => ({ item_id: item.id, item_name: item.title, price: item.price, quantity: item.quantity }))
       });
@@ -280,10 +288,10 @@ export default function Checkout() {
         address: form.address,
         order_details: orderItems.map(item => {
             const sizeInfo = item.size ? ` (${item.size})` : "";
-            return item.isCustomSet 
-                ? `${item.title}: ${item.selectedSamples.join(', ')}` 
+            return item.isCustomSet
+                ? `${item.title}: ${(item.selectedSamples || []).join(', ')}`
                 : `${item.title}${sizeInfo} x ${item.quantity}`;
-        }).join('\n'), 
+        }).join('\n'),
       }, EMAILJS_PUBLIC_KEY);
 
       clearCart();
@@ -291,107 +299,177 @@ export default function Checkout() {
       
     } catch (error) {
       console.error("Error during checkout:", error);
-      alert("Order processing failed.");
+      setFormError("Something went wrong while placing your order. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="p-8 max-w-lg mx-auto font-archivo">
-      <h2 className="text-2xl font-bold mb-6 text-[#1C3C85] uppercase italic tracking-tighter">Confirm Your Order</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-
-        <div className="flex gap-4">
-            <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-1/2 border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
-            <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-1/2 border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
-        </div>
-        <input type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
-        <input type="tel" name="phone" placeholder="Phone Number" value={form.phone} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
-
-        <select
-          name="governorate"
-          value={form.governorate}
-          onChange={handleChange}
-          className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none appearance-none"
-          required
-        >
-          <option value="">{fetchingRates ? "Loading Shipping Rates..." : "Select Destination"}</option>
-          {shippingRates.map(rate => (
-            <option key={rate.id} value={rate.governorate}>
-              {rate.governorate} — {rate.price} EGP
-            </option>
-          ))}
-        </select>
-
-        <textarea name="address" placeholder="Detailed Address" value={form.address} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none min-h-[100px]" required />
-        
-        <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
-          <input type="text" placeholder="Promo code" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 bg-transparent p-2 outline-none text-sm" />
-          <button type="button" onClick={handleApplyPromo} className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">Apply</button>
-        </div>
-        {promoError && <p className="text-red-500 text-[10px] font-bold uppercase ml-2">{promoError}</p>}
-        {appliedPromo && <p className="text-green-600 text-[10px] font-bold uppercase ml-2">Code Applied!</p>}
-        
-        {/* Loyalty Message Display */}
-        {loyaltyMessage && <p className="text-orange-600 text-[10px] font-bold uppercase ml-2 animate-pulse">{loyaltyMessage}</p>}
-
-        <div className="border border-gray-200 p-4 rounded-2xl space-y-4">
-          <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Payment Method</h3>
-
-          <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "InstaPay" ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-100' : 'hover:bg-gray-50'}`}>
-            <input type="radio" checked={paymentMethod === "InstaPay"} onChange={() => setPaymentMethod("InstaPay")} className="hidden" />
-            <div className="flex-1">
-              <span className="font-bold text-purple-700 block text-sm">InstaPay</span>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Instant Transfer</p>
-            </div>
-          </label>
-
-          {paymentMethod === "InstaPay" && (
-            <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile:</p>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-black text-purple-900">01000775276</span>
-                  <button 
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText("01000775276")}
-                    className="text-[10px] font-bold text-purple-600 underline uppercase tracking-widest"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter pt-2">2. Your Transfer Number:</p>
-              <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white outline-none" required />
-            </div>
-          )}
-
-          <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
-            <input 
-              type="radio" 
-              checked={paymentMethod === "COD"} 
-              onChange={() => setPaymentMethod("COD")} 
-              className="w-4 h-4 accent-blue-600" 
-            />
-            <div className="flex-1">
-              <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
-            </div>
-          </label>
-        </div>
-
-        <div className="bg-gray-100 p-6 rounded-2xl space-y-2 border border-gray-200">
-          <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Subtotal</span><span>{subtotal.toFixed(2)} EGP</span></div>
-          <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Shipping</span><span>{currentShippingCost.toFixed(2)} EGP</span></div>
-          {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo Discount</span><span>-{promoDiscountAmount.toFixed(2)} EGP</span></div>}
-          {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount (25%)</span><span>-{loyaltyDiscountAmount.toFixed(2)} EGP</span></div>}
-          <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toFixed(2)} EGP</span></div>
-        </div>
-
-        <button type="submit" disabled={loading} className="w-full bg-[#1C3C85] text-white py-4 rounded-full font-black uppercase tracking-widest shadow-lg hover:bg-blue-800 transition-all disabled:opacity-50">
-          {loading ? "Processing..." : "Confirm Order"}
+  if (cart.length === 0) {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center font-archivo min-h-[60vh] flex flex-col items-center justify-center">
+        <h2 className="text-2xl font-black text-[#1C3C85] uppercase italic tracking-tighter mb-3">Your bag is empty</h2>
+        <p className="text-gray-500 text-sm mb-6">Add a fragrance before checking out.</p>
+        <button onClick={() => navigate("/products")} className="px-8 py-3 bg-[#1C3C85] text-white rounded-full font-black uppercase tracking-widest text-sm hover:bg-blue-800 transition">
+          Shop the Collection
         </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-8 max-w-5xl mx-auto font-archivo">
+      <h2 className="text-2xl md:text-3xl font-black mb-6 text-[#1C3C85] uppercase italic tracking-tighter">Confirm Your Order</h2>
+
+      <form onSubmit={handleSubmit} className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
+
+        {/* LEFT: Customer details */}
+        <div className="space-y-4">
+          <div className="flex gap-4">
+              <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-1/2 border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
+              <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-1/2 border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
+          </div>
+          <input type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
+          <input type="tel" name="phone" placeholder="Phone Number" value={form.phone} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none" required />
+
+          <select
+            name="governorate"
+            value={form.governorate}
+            onChange={handleChange}
+            className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none appearance-none"
+            required
+          >
+            <option value="">{fetchingRates ? "Loading Shipping Rates..." : "Select Destination"}</option>
+            {shippingRates.map(rate => (
+              <option key={rate.id} value={rate.governorate}>
+                {rate.governorate} — {rate.price} EGP
+              </option>
+            ))}
+          </select>
+
+          <textarea name="address" placeholder="Detailed Address" value={form.address} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none min-h-[100px]" required />
+
+          <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
+            <input type="text" placeholder="Promo code" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 bg-transparent p-2 outline-none text-sm" />
+            <button type="button" onClick={handleApplyPromo} className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">Apply</button>
+          </div>
+          {promoError && <p className="text-red-500 text-[10px] font-bold uppercase ml-2">{promoError}</p>}
+          {appliedPromo && <p className="text-green-600 text-[10px] font-bold uppercase ml-2">Code Applied!</p>}
+
+          {/* Loyalty Message Display */}
+          {loyaltyMessage && <p className="text-orange-600 text-[10px] font-bold uppercase ml-2 animate-pulse">{loyaltyMessage}</p>}
+
+          <div className="border border-gray-200 p-4 rounded-2xl space-y-4">
+            <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest">Payment Method</h3>
+
+            <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "InstaPay" ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-100' : 'hover:bg-gray-50'}`}>
+              <input type="radio" checked={paymentMethod === "InstaPay"} onChange={() => setPaymentMethod("InstaPay")} className="hidden" />
+              <div className="flex-1">
+                <span className="font-bold text-purple-700 block text-sm">InstaPay</span>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Instant Transfer</p>
+              </div>
+            </label>
+
+            {paymentMethod === "InstaPay" && (
+              <div className="p-4 bg-purple-100/50 rounded-xl space-y-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter">1. Send to Mobile:</p>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl font-black text-purple-900">01000775276</span>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText("01000775276")}
+                      className="text-[10px] font-bold text-purple-600 underline uppercase tracking-widest"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs font-bold text-purple-800 uppercase tracking-tighter pt-2">2. Your Transfer Number:</p>
+                <input type="tel" placeholder="01xxxxxxxxx" value={instapayPhone} onChange={(e) => setInstapayPhone(e.target.value)} className="w-full border p-3 rounded-lg bg-white outline-none" required />
+              </div>
+            )}
+
+            <label className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "COD" ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'hover:bg-gray-50'}`}>
+              <input
+                type="radio"
+                checked={paymentMethod === "COD"}
+                onChange={() => setPaymentMethod("COD")}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <div className="flex-1">
+                <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {/* RIGHT: Order summary (sticky) */}
+        <aside className="lg:sticky lg:top-8 self-start">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 space-y-4">
+            <h3 className="text-sm font-black uppercase text-[#1C3C85] tracking-widest">Order Summary</h3>
+
+            {/* Items */}
+            <ul className="space-y-3 max-h-72 overflow-y-auto no-scrollbar">
+              {cart.map((item) => (
+                <li key={`${item.id}-${item.size || ''}`} className="flex gap-3">
+                  <img
+                    src={(item.images && item.images[0]) || item.image || "/images/placeholder.png"}
+                    alt={item.title}
+                    onError={(e) => { e.target.src = "/images/placeholder.png"; }}
+                    className="w-14 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0 border border-gray-100"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold uppercase text-stone-800 truncate">{item.title}</p>
+                    {item.isCustomSet ? (
+                      <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">
+                        {(item.selectedSamples || []).map((s) => (typeof s === "string" ? s : s.title)).join(" • ")}
+                      </p>
+                    ) : item.size && item.size !== "Standard" ? (
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest">{item.size}</p>
+                    ) : null}
+                    <p className="text-[10px] text-gray-400">Qty: {item.quantity}</p>
+                  </div>
+                  <span className="text-xs font-black text-[#1C3C85] whitespace-nowrap">
+                    EGP {(item.price * item.quantity).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Totals */}
+            <div className="space-y-2 border-t border-gray-100 pt-4">
+              <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>Subtotal</span><span>{subtotal.toLocaleString()} EGP</span></div>
+              <div className="flex justify-between text-xs font-bold uppercase">
+                <span className="text-gray-500">Shipping</span>
+                {form.governorate ? (
+                  <span className="text-gray-500">{currentShippingCost.toLocaleString()} EGP</span>
+                ) : (
+                  <span className="text-gray-400 normal-case font-medium">Select destination</span>
+                )}
+              </div>
+              {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo Discount</span><span>-{promoDiscountAmount.toLocaleString()} EGP</span></div>}
+              {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount</span><span>-{loyaltyDiscountAmount.toLocaleString()} EGP</span></div>}
+              <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toLocaleString()} EGP</span></div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-[#1C3C85] text-white py-4 rounded-full font-black uppercase tracking-widest shadow-lg hover:bg-blue-800 transition-all disabled:opacity-50">
+              {loading ? "Processing..." : `Confirm Order · EGP ${total.toLocaleString()}`}
+            </button>
+
+            {formError && (
+              <p className="text-red-500 text-xs font-bold text-center">{formError}</p>
+            )}
+
+            {/* Trust signals */}
+            <div className="flex items-center justify-center gap-4 pt-1 text-stone-400">
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide"><ShieldCheck size={14} className="text-[#1C3C85]" /> Secure</span>
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide"><BadgeCheck size={14} className="text-[#1C3C85]" /> Authentic</span>
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide"><Truck size={14} className="text-[#1C3C85]" /> Fast delivery</span>
+            </div>
+          </div>
+        </aside>
       </form>
     </div>
   );

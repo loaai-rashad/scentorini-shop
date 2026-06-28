@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../firebase';
 import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { Trash2, Star, MessageSquare } from 'lucide-react';
+import { toast, confirmDialog } from './ui/notify';
 
 export default function AdminReviews() {
     const [reviews, setReviews] = useState([]);
@@ -22,12 +23,13 @@ export default function AdminReviews() {
     }, []);
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this review? This cannot be undone.")) {
+        if (await confirmDialog({ title: "Delete review", message: "This cannot be undone.", confirmText: "Delete" })) {
             try {
                 await deleteDoc(doc(db, "reviews", id));
+                toast.success("Review deleted.");
             } catch (err) {
                 console.error("Error deleting review:", err);
-                alert("Failed to delete review");
+                toast.error("Failed to delete review.");
             }
         }
     };

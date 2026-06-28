@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Star, Minus, Plus, Truck, BadgeCheck, Sparkles, FlaskConical } from "lucide-react";
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
@@ -43,10 +44,28 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState(false);
-  const [mainImage, setMainImage] = useState(""); 
-  const [selectedSize, setSelectedSize] = useState(null); 
+  const [mainImage, setMainImage] = useState("");
+  const [selectedSize, setSelectedSize] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  // Refs for scroll-to-reviews and the sticky-bar visibility trigger
+  const reviewsRef = useRef(null);
+  const ctaRef = useRef(null);
+
+  // Show the mobile sticky add-to-cart bar once the main CTA scrolls out of view
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [product]);
 
   useEffect(() => {
     const fetchProductData = async () => {
@@ -122,9 +141,13 @@ export default function ProductPage() {
       price: finalPrice || 0,
     };
     
-    // CRITICAL FIX: Pass the size as the SECOND argument to match CartContext
-    addToCart(cartItem, finalSizeLabel);
-    
+    // CRITICAL FIX: Pass the size as the SECOND argument to match CartContext.
+    // For the main product, honor the chosen quantity (upsell items add 1).
+    const times = itemToTarget ? 1 : Math.max(1, quantity);
+    for (let i = 0; i < times; i++) {
+      addToCart(cartItem, finalSizeLabel);
+    }
+
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -143,9 +166,34 @@ export default function ProductPage() {
   const uniqueGalleryImages = product.uniqueGalleryImages || [];
   const currentMainImage = mainImage || uniqueGalleryImages[0] || "/perfume.jpeg";
 
-  const displayedPrice = selectedSize?.price 
-    ? Number(selectedSize.price) 
+  const displayedPrice = selectedSize?.price
+    ? Number(selectedSize.price)
     : (Number(product.price) || 0);
+
+  // --- Review summary (uses the reviews already fetched for this product) ---
+  const reviewCount = reviews.length;
+  const avgRating = reviewCount
+    ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviewCount
+    : 0;
+
+  const inStock = Number(product.stock) > 0;
+  const maxQty = Math.max(1, Number(product.stock) || 1);
+  const isTester = String(product.for).toLowerCase() === "tester";
+
+  const scrollToReviews = () =>
+    reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Render a row of 5 stars filled up to `value`.
+  const renderStars = (value, size = 16) =>
+    [...Array(5)].map((_, i) => (
+      <Star
+        key={i}
+        size={size}
+        className="flex-shrink-0"
+        fill={i < Math.round(value) ? "#1C3C85" : "none"}
+        color="#1C3C85"
+      />
+    ));
 
   return (
     <div className="min-h-screen">
@@ -185,6 +233,29 @@ export default function ProductPage() {
                   {product.title}
               </h1>
               <p className="text-lg text-stone-500 font-medium mt-1">{product.subtitle}</p>
+
+              {/* Rating summary — social proof up top */}
+              <button
+                onClick={scrollToReviews}
+                className="flex items-center gap-2 mt-3 group"
+              >
+                {reviewCount > 0 ? (
+                  <>
+                    <span className="flex items-center gap-0.5">{renderStars(avgRating, 16)}</span>
+                    <span className="text-sm font-bold text-stone-800">{avgRating.toFixed(1)}</span>
+                    <span className="text-sm text-stone-500 group-hover:text-[#1C3C85] underline-offset-2 group-hover:underline">
+                      ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-0.5 opacity-40">{renderStars(0, 16)}</span>
+                    <span className="text-sm text-stone-500 group-hover:text-[#1C3C85] underline-offset-2 group-hover:underline">
+                      Be the first to review
+                    </span>
+                  </>
+                )}
+              </button>
           </div>
           
           {product.inspiredBy && (
@@ -257,14 +328,37 @@ export default function ProductPage() {
             </div>
           )}
           
-          <div className="flex flex-col gap-3 mt-2">
-              {Number(product.stock) > 0 ? (
-                  <button
-                      className="w-full bg-[#1C3C85] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-[#142d63] transition-all transform active:scale-95 shadow-lg" 
-                      onClick={() => handleAddToCart()}
-                  >
-                      Add to Cart
-                  </button>
+          <div ref={ctaRef} className="flex flex-col gap-4 mt-2">
+              {inStock ? (
+                  <div className="flex items-stretch gap-3">
+                      {/* Quantity stepper */}
+                      <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                          <button
+                              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                              disabled={quantity <= 1}
+                              aria-label="Decrease quantity"
+                              className="px-4 py-4 text-stone-600 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                          >
+                              <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="w-10 text-center font-black text-stone-900 select-none">{quantity}</span>
+                          <button
+                              onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                              disabled={quantity >= maxQty}
+                              aria-label="Increase quantity"
+                              className="px-4 py-4 text-stone-600 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                          >
+                              <Plus className="w-4 h-4" />
+                          </button>
+                      </div>
+                      {/* Add to cart */}
+                      <button
+                          className="flex-1 bg-[#1C3C85] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-[#142d63] transition-all transform active:scale-95 shadow-lg"
+                          onClick={() => handleAddToCart()}
+                      >
+                          Add to Cart
+                      </button>
+                  </div>
               ) : (
                   <button
                       className="w-full bg-gray-300 text-gray-500 py-4 rounded-xl font-bold uppercase cursor-not-allowed"
@@ -272,6 +366,31 @@ export default function ProductPage() {
                   >
                       Out of Stock
                   </button>
+              )}
+
+              {/* Trust badges — reassurance right at the buy decision */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                  {[
+                      { icon: BadgeCheck, label: "Authentic" },
+                      { icon: Truck, label: "Fast delivery" },
+                      { icon: Sparkles, label: "Long lasting" },
+                  ].map(({ icon: Icon, label }) => (
+                      <div key={label} className="flex flex-col items-center text-center gap-1.5 text-stone-500">
+                          <Icon className="w-5 h-5 text-[#1C3C85]" />
+                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-wide leading-tight">{label}</span>
+                      </div>
+                  ))}
+              </div>
+
+              {/* Sample cross-sell — capture risk-averse buyers */}
+              {!isTester && (
+                  <Link
+                      to="/testers/builder"
+                      className="flex items-center justify-center gap-2 text-sm font-bold text-stone-600 hover:text-[#1C3C85] transition-colors mt-1"
+                  >
+                      <FlaskConical className="w-4 h-4" />
+                      Not sure? Try a sample first
+                  </Link>
               )}
           </div>
           
@@ -291,7 +410,7 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto mt-12 border-t border-gray-100 pt-12 pb-20">
+      <div ref={reviewsRef} className="max-w-7xl mx-auto mt-12 border-t border-gray-100 pt-12 pb-20 scroll-mt-24">
         <ReviewSlider title={`Reviews for ${product.title}`} reviews={reviews} />
         <div className="flex justify-center mt-10">
           <button 
@@ -308,6 +427,38 @@ export default function ProductPage() {
           productId={id} 
           productTitle={product.title}
       />
+
+      {/* Sticky add-to-cart bar (mobile) — keeps the CTA reachable while scrolling */}
+      <div
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center gap-3 transition-transform duration-300 ${
+          showStickyBar ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <img
+          src={currentMainImage}
+          alt={product.title}
+          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-stone-500 truncate">{product.title}</p>
+          <p className="text-base font-black text-stone-900">EGP {displayedPrice.toLocaleString()}</p>
+        </div>
+        {inStock ? (
+          <button
+            onClick={() => handleAddToCart()}
+            className="bg-[#1C3C85] text-white px-7 py-3 rounded-xl font-black uppercase tracking-wider text-sm active:scale-95 transition-transform shadow-lg"
+          >
+            Add to Cart
+          </button>
+        ) : (
+          <button
+            disabled
+            className="bg-gray-300 text-gray-500 px-7 py-3 rounded-xl font-bold uppercase text-sm"
+          >
+            Sold Out
+          </button>
+        )}
+      </div>
 
       {showToast && (
         <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-[#1C3C85] text-white px-8 py-4 rounded-2xl shadow-2xl z-50 animate-bounce font-bold uppercase tracking-wider">

@@ -54,38 +54,41 @@ export function CartProvider({ children }) {
     });
   };
 
-  // Remove from cart
-  const removeFromCart = (id) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== id));
+  // Helper: a cart line is uniquely identified by id + size (same product, different sizes are separate lines)
+  const sameLine = (item, id, size) => item.id === id && item.size === size;
+
+  // Remove from cart (size-aware)
+  const removeFromCart = (id, size = null) => {
+    setCart((prevCart) => prevCart.filter((item) => !sameLine(item, id, size)));
   };
 
-  // Update quantity directly (respects stock)
-  const updateQuantity = (id, quantity) => {
+  // Update quantity directly (respects stock, size-aware)
+  const updateQuantity = (id, quantity, size = null) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.id === id
+        sameLine(item, id, size)
           ? { ...item, quantity: Math.min(quantity, item.stock) }
           : item
       )
     );
   };
 
-  // Increment quantity with stock check
-  const incrementQuantity = (id) => {
+  // Increment quantity with stock check (size-aware)
+  const incrementQuantity = (id, size = null) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.id === id
+        sameLine(item, id, size)
           ? { ...item, quantity: Math.min(item.quantity + 1, item.stock) }
           : item
       )
     );
   };
 
-  // Decrement quantity (min 1)
-  const decrementQuantity = (id) => {
+  // Decrement quantity (min 1, size-aware)
+  const decrementQuantity = (id, size = null) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(item.quantity - 1, 1) } : item
+        sameLine(item, id, size) ? { ...item, quantity: Math.max(item.quantity - 1, 1) } : item
       )
     );
   };

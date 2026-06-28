@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { toast, confirmDialog } from './ui/notify';
 
 // Helper component for loading
 const Loading = () => <div className="p-8 text-center text-gray-500">Loading sections...</div>;
@@ -61,8 +62,8 @@ export default function AdminCustomizableSections() {
     
     // Handler for creating a new section
     const handleCreateSection = async () => {
-        if (!newSection.title) return alert("Section title is required.");
-        
+        if (!newSection.title) return toast.error("Section title is required.");
+
         try {
             await addDoc(collection(db, "customizableSections"), {
                 title: newSection.title.trim(),
@@ -70,9 +71,10 @@ export default function AdminCustomizableSections() {
                 productIds: newSection.productIds,
             });
             setNewSection({ title: '', order: 0, productIds: [] }); // Clear form
+            toast.success("Section created.");
         } catch (error) {
             console.error("Error creating section:", error);
-            alert("Failed to create section.");
+            toast.error("Failed to create section.");
         }
     };
     
@@ -92,22 +94,23 @@ export default function AdminCustomizableSections() {
                 order: parseInt(sectionToSave.order) || 0,
                 productIds: cleanedProductIds,
             });
-            alert("Section updated successfully!");
+            toast.success("Section updated!");
             setIsEditing(null); // Exit edit mode
         } catch (error) {
             console.error("Error saving section:", error);
-            alert("Failed to update section.");
+            toast.error("Failed to update section.");
         }
     };
 
     // Handler for deleting a section
     const handleDeleteSection = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this homepage section?")) return;
+        if (!(await confirmDialog({ title: "Delete section", message: "Remove this homepage section?", confirmText: "Delete" }))) return;
         try {
             await deleteDoc(doc(db, "customizableSections", id));
+            toast.success("Section deleted.");
         } catch (error) {
             console.error("Error deleting section:", error);
-            alert("Failed to delete section.");
+            toast.error("Failed to delete section.");
         }
     };
     

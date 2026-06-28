@@ -68,17 +68,25 @@ export default function Cart({ isOpen, onClose }) {
                         <h3 className={`font-black uppercase text-sm leading-tight tracking-tight ${item.isCustomSet ? 'text-purple-700' : 'text-gray-900'}`}>
                           {item.title}
                         </h3>
-                        <button 
-                          onClick={() => removeFromCart(item.id)}
+                        <button
+                          onClick={() => removeFromCart(item.id, item.size)}
                           className="text-gray-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      
-                      {item.isCustomSet && item.selections && (
+
+                      {/* Size variant label */}
+                      {!item.isCustomSet && item.size && item.size !== "Standard" && (
+                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-widest">
+                          {item.size}
+                        </p>
+                      )}
+
+                      {/* Discovery Set: list the chosen samples */}
+                      {item.isCustomSet && Array.isArray(item.selectedSamples) && (
                         <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 leading-relaxed">
-                          {item.selections.join(" • ")}
+                          {item.selectedSamples.map((s) => (typeof s === "string" ? s : s.title)).join(" • ")}
                         </p>
                       )}
                     </div>
@@ -87,16 +95,16 @@ export default function Cart({ isOpen, onClose }) {
                       {/* Quantity Controls */}
                       {!item.isCustomSet ? (
                         <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
-                          <button 
+                          <button
                             className="p-1 px-3 text-gray-500 hover:text-[#1C3C85] transition-colors"
-                            onClick={() => decrementQuantity(item.id)}
+                            onClick={() => decrementQuantity(item.id, item.size)}
                           >
                             <Minus size={14} />
                           </button>
                           <span className="px-1 text-xs font-black min-w-[20px] text-center">{item.quantity}</span>
-                          <button 
+                          <button
                             className="p-1 px-3 text-gray-500 hover:text-[#1C3C85] transition-colors"
-                            onClick={() => incrementQuantity(item.id)}
+                            onClick={() => incrementQuantity(item.id, item.size)}
                           >
                             <Plus size={14} />
                           </button>

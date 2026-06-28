@@ -28,6 +28,14 @@ const Header = () => {
     return () => unsubscribe();
   }, []);
 
+  // Lock background scroll while the mobile drawer is open
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMenuOpen]);
+
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -156,25 +164,60 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Sidebar/Menu */}
+      {/* Mobile Drawer — backdrop */}
       <div
-        className={`lg:hidden absolute top-20 left-0 w-full bg-white border-b border-gray-100 transition-all duration-500 ease-in-out z-40 ${
-          isMenuOpen ? "translate-y-0 opacity-100 shadow-xl" : "-translate-y-full opacity-0 pointer-events-none"
+        onClick={() => setIsMenuOpen(false)}
+        className={`lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+          isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      />
+
+      {/* Mobile Drawer — side panel */}
+      <aside
+        className={`lg:hidden fixed top-0 right-0 z-50 h-full w-[78%] max-w-xs bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+          isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <ul className="flex flex-col items-center py-10 space-y-6 bg-white">
+        {/* Drawer header */}
+        <div className="flex items-center justify-between h-20 px-5 border-b border-gray-100">
+          <img
+            src="/images/scentorinilogoo.jpeg"
+            alt="Scentorini Logo"
+            className="h-7 w-auto object-contain"
+          />
+          <button
+            onClick={() => setIsMenuOpen(false)}
+            className="p-2 text-gray-500 hover:text-[#1C3C85] active:scale-90 transition-all"
+            aria-label="Close menu"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Drawer links */}
+        <ul className="flex flex-col px-5 py-6 space-y-1">
           <NavItem to="/" onClick={toggleMenu}>Home</NavItem>
           <NavItem to="/about" onClick={toggleMenu}>About</NavItem>
-          <button 
-            onClick={() => { toggleMenu(); setIsCartOpen(true); }}
-            className="text-lg font-black uppercase tracking-tight text-gray-700"
-          >
-            Cart ({totalItems})
-          </button>
-          <div className="w-12 h-[2px] bg-gray-100" />
-          <AuthUI isMobile />
+          <li>
+            <button
+              onClick={() => { toggleMenu(); setIsCartOpen(true); }}
+              className="w-full flex items-center justify-between py-2 text-lg font-black uppercase tracking-tight text-gray-700 hover:text-[#1C3C85] transition-colors"
+            >
+              Cart
+              {totalItems > 0 && (
+                <span className="bg-[#1C3C85] text-white rounded-full h-6 w-6 flex items-center justify-center text-[11px] font-black italic">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </li>
         </ul>
-      </div>
+
+        {/* Drawer footer / auth */}
+        <div className="mt-auto px-5 py-6 border-t border-gray-100">
+          <AuthUI isMobile />
+        </div>
+      </aside>
 
       {/* THE CART POPUP */}
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />

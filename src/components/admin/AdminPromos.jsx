@@ -1,4 +1,5 @@
 import React from 'react';
+import { confirmDialog } from './ui/notify';
 
 export default function AdminPromos({
     promoCodes,
@@ -67,8 +68,8 @@ export default function AdminPromos({
 
                             {/* DELETE BUTTON */}
                             <button
-                                onClick={() => {
-                                    if(window.confirm(`Delete "${p.code}"?`)) {
+                                onClick={async () => {
+                                    if (await confirmDialog({ title: "Delete promo", message: `Delete "${p.code}"?`, confirmText: "Delete" })) {
                                         handleDeletePromo(p.id);
                                     }
                                 }}

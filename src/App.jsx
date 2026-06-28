@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"; 
-import { Routes, Route, useLocation } from "react-router-dom"; 
+import { Routes, Route, useLocation, Link } from "react-router-dom";
 import ReactGA from 'react-ga4'; 
 import { collection, query, getDocs, orderBy, onSnapshot } from "firebase/firestore"; 
 import { db } from './firebase'; 
@@ -15,8 +15,12 @@ import ProductsList from "./components/ProductsList";
 import ProductPage from "./pages/ProductPage";                   
 import DiscoverySetPage from "./pages/DiscoverySetPage";         
 import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
-import CustomProductSection from "./components/CustomProductSection"; 
+import CustomProductSection from "./components/CustomProductSection";
 import AnnouncementBar from "./components/AnnouncementBar.jsx"
+import TrustBar from "./components/TrustBar";
+import AboutTeaser from "./components/AboutTeaser";
+import SectionHeading from "./components/SectionHeading";
+import WhatsAppButton from "./components/WhatsAppButton";
 // --- REVIEW COMPONENTS ---
 import ReviewSlider from "./components/ReviewSlider";
 import ReviewModal from "./components/ReviewModal";
@@ -93,37 +97,65 @@ function App() {
             element={
               <>
                 <Carousel />
-                
+
+                {/* --- TRUST / VALUE BAR --- */}
+                <TrustBar />
+
                 {/* --- 1. DYNAMIC ADMIN SECTIONS --- */}
                 {/* These are the sections you manage in Admin > Custom Sections */}
                 {customSections.map(section => (
                     <CustomProductSection key={section.id} sectionConfig={section} />
                 ))}
                 
-                {/* --- 2. DISCOVERY SET BUILDER --- */}
-<section className="px-8 py-4 max-w-7xl mx-auto my-4 md:my-8">
-    <h2 className="text-xl md:text-3xl font-montserrat font-bold text-[#1C3C85] text-center mb-2">
-        Design Your Experience
-    </h2>
-    <p className="text-center text-gray-500 text-sm mb-8">
-        Create your personalized Discovery Set with 3 to 6 custom samples.
-    </p>
-    {/* This flex container ensures the Discovery card is centered */}
-    <div className="flex justify-center items-center w-full">
-        <DiscoveryCardFetcher />
-    </div>
-</section>
+                {/* --- 2. DISCOVERY SET BUILDER (feature banner) --- */}
+                <section className="px-4 md:px-8 py-14 md:py-20 max-w-7xl mx-auto">
+                  <div className="rounded-3xl bg-[#1C3C85]/5 border border-[#1C3C85]/10 px-6 md:px-12 py-10 md:py-14 grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+                    {/* Text + CTA */}
+                    <div className="text-center md:text-left order-2 md:order-none">
+                      <span className="block text-[11px] md:text-xs font-archivo font-bold uppercase tracking-[0.3em] text-[#1C3C85]/60 mb-3">
+                        Build Your Own
+                      </span>
+                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-archivo font-black uppercase tracking-tight text-[#1C3C85] leading-[1.05]">
+                        Design Your Experience
+                      </h2>
+                      <p className="mt-4 text-gray-600 text-base md:text-lg leading-relaxed max-w-md mx-auto md:mx-0">
+                        Create your personalized Discovery Set with 3 to 6 custom
+                        samples — and find the scent that feels like you.
+                      </p>
+                      <Link
+                        to="/testers/builder"
+                        className="inline-flex items-center gap-2 mt-8 px-8 py-3 bg-[#1C3C85] text-white font-archivo font-black uppercase tracking-widest text-xs md:text-sm rounded-full shadow-lg hover:bg-[#142d63] transition-all transform hover:-translate-y-0.5"
+                      >
+                        Build Your Set
+                      </Link>
+                    </div>
+
+                    {/* Discovery card */}
+                    <div className="flex justify-center md:justify-end items-center w-full order-1 md:order-none">
+                      <DiscoveryCardFetcher />
+                    </div>
+                  </div>
+                </section>
 
                 {/* --- 3. REVIEWS SECTION --- */}
-                <ReviewSlider title="Customer Stories" reviews={reviews} />
-                <div className="flex justify-center mb-20">
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="px-8 py-3 border-2 border-[#1C3C85] text-[#1C3C85] font-archivo font-black uppercase tracking-widest rounded-full hover:bg-[#1C3C85] hover:text-white transition-all transform hover:-translate-y-1"
+                <section className="py-14 md:py-20">
+                  <SectionHeading
+                    eyebrow="Loved by our customers"
+                    title="Customer Stories"
+                  />
+                  <ReviewSlider reviews={reviews} />
+                  <div className="flex justify-center mt-12">
+                    <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="px-8 py-3 border-2 border-[#1C3C85] text-[#1C3C85] font-archivo font-black uppercase tracking-widest rounded-full hover:bg-[#1C3C85] hover:text-white transition-all transform hover:-translate-y-1"
                     >
-                        Write a Review
+                      Write a Review
                     </button>
-                </div>
+                  </div>
+                </section>
+
+                {/* --- 4. BRAND STORY TEASER --- */}
+                <AboutTeaser />
 
                 <ReviewModal 
                     isOpen={isModalOpen} 
@@ -150,6 +182,7 @@ function App() {
       </div>
 
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
