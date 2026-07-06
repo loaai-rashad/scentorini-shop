@@ -15,7 +15,7 @@ import {
   deleteField, 
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { supabase } from "../supabase";
+import { uploadImage } from "../lib/uploadImage";
 import { useNavigate } from "react-router-dom";
 
 // Import modular components
@@ -210,28 +210,15 @@ const handleDeleteShippingRate = async (id) => {
     }
   };
 
-  // Uploads the selected file to Supabase storage (same 'product-images' bucket
-  // used in AdminProducts) and stores the returned public URL on heroSettings.
+  // Compresses + uploads the hero banner to Cloudinary and stores the URL.
   const handleHeroImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setHeroUploading(true);
     try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `hero_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-            .from('product-images')
-            .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(fileName);
-
-        setHeroSettings(prev => ({ ...prev, imageUrl: data.publicUrl }));
+        const url = await uploadImage(file);
+        setHeroSettings(prev => ({ ...prev, imageUrl: url }));
         toast.success("Image uploaded.");
     } catch (error) {
         console.error('Error uploading hero image:', error.message);

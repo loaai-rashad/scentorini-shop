@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { supabase } from "../../supabase"; // Make sure this path correctly points to your supabase.js file
+import { uploadImage } from "../../lib/uploadImage";
 import { toast } from './ui/notify';
 import { Plus, Trash2, X, Search, ImagePlus, PackagePlus, ChevronDown, Loader2 } from 'lucide-react';
 
@@ -27,23 +27,14 @@ export default function AdminProducts({
         return validImages.length > 0 ? validImages[0] : (product.image || "/perfume.jpeg");
     };
 
-    // --- SUPABASE UPLOAD ---
-    const uploadImageToSupabase = async (file) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
-        if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-        return data.publicUrl;
-    };
-
+    // --- IMAGE UPLOAD (compress + Cloudinary) ---
     const handleNewProductImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true);
         try {
-            const publicUrl = await uploadImageToSupabase(file);
-            setNewProduct(prev => ({ ...prev, images: [...(prev.images || []), publicUrl] }));
+            const url = await uploadImage(file);
+            setNewProduct(prev => ({ ...prev, images: [...(prev.images || []), url] }));
             toast.success("Image uploaded.");
         } catch (error) {
             console.error('Error uploading image:', error.message);
@@ -59,9 +50,9 @@ export default function AdminProducts({
         if (!file) return;
         setEditUploadingId(productId);
         try {
-            const publicUrl = await uploadImageToSupabase(file);
+            const url = await uploadImage(file);
             const product = products.find(p => p.id === productId);
-            handleProductChange(productId, "images", [...(product.images || []), publicUrl]);
+            handleProductChange(productId, "images", [...(product.images || []), url]);
             toast.success("Image uploaded.");
         } catch (error) {
             console.error('Error uploading image:', error.message);
