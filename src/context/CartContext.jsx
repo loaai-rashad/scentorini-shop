@@ -1,6 +1,7 @@
 // src/context/CartContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
-import ReactGA from 'react-ga4'; 
+import ReactGA from 'react-ga4';
+import { pixelTrack } from "../lib/metaPixel";
 
 const CartContext = createContext();
 
@@ -28,8 +29,17 @@ export function CartProvider({ children }) {
 
     ReactGA.event('add_to_cart', {
         currency: "EGP",
-        value: product.price, 
+        value: product.price,
         items: [ga4Item]
+    });
+
+    // --- Meta Pixel: AddToCart ---
+    pixelTrack('AddToCart', {
+        content_ids: [product.id],
+        content_name: product.title,
+        content_type: 'product',
+        value: Number(product.price) || 0,
+        currency: 'EGP',
     });
     // -------------------------------------------
     

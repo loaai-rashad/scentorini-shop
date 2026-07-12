@@ -4,8 +4,10 @@ import { Star, Minus, Plus, Truck, BadgeCheck, Sparkles, FlaskConical } from "lu
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
-import LoadingScreen from "../components/LoadingScreen"; 
+import LoadingScreen from "../components/LoadingScreen";
 import ReactGA from 'react-ga4';
+import { pixelTrack } from "../lib/metaPixel";
+import { setPageMeta } from "../lib/seo";
 
 // Review Components
 import ReviewSlider from "../components/ReviewSlider";
@@ -83,12 +85,30 @@ export default function ProductPage() {
 
           ReactGA.event('view_item', {
               currency: "EGP",
-              value: Number(productData.price) || 0, 
+              value: Number(productData.price) || 0,
               items: [{
                   item_id: productData.id,
                   item_name: productData.title,
                   price: Number(productData.price) || 0,
               }]
+          });
+
+          // --- Meta Pixel: ViewContent ---
+          pixelTrack('ViewContent', {
+              content_ids: [productData.id],
+              content_name: productData.title,
+              content_type: 'product',
+              value: Number(productData.price) || 0,
+              currency: 'EGP',
+          });
+
+          // --- SEO: per-product title + description ---
+          setPageMeta({
+              title: `${productData.title} | Scentorini`,
+              description:
+                  productData.subtitle ||
+                  (productData.description ? String(productData.description).slice(0, 160) : "") ||
+                  `${productData.title} — discover it at Scentorini.`,
           });
         }
 

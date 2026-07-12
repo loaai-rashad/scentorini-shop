@@ -21,6 +21,8 @@ import TrustBar from "./components/TrustBar";
 import AboutTeaser from "./components/AboutTeaser";
 import SectionHeading from "./components/SectionHeading";
 import WhatsAppButton from "./components/WhatsAppButton";
+import { initMetaPixel, pixelTrack } from "./lib/metaPixel";
+import { setPageMeta } from "./lib/seo";
 // --- REVIEW COMPONENTS ---
 import ReviewSlider from "./components/ReviewSlider";
 import ReviewModal from "./components/ReviewModal";
@@ -41,9 +43,13 @@ ReactGA.initialize(TRACKING_ID);
 function PageViewTracker() {
     const location = useLocation();
     useEffect(() => {
+        initMetaPixel();
         ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+        pixelTrack("PageView");
+        // Reset to the brand title on the homepage (product/list/about pages set their own)
+        if (location.pathname === "/") setPageMeta({ title: "Scentorini — Santorini-Inspired Fragrances" });
     }, [location]);
-    return null; 
+    return null;
 }
 
 function App() {

@@ -7,6 +7,7 @@ import { Search } from 'lucide-react';
 import { db } from '../firebase';
 import LoadingScreen from "./LoadingScreen";
 import ProductGroup from "./ProductGroup";
+import { setPageMeta } from "../lib/seo";
 
 export default function ProductsList() {
     const [products, setProducts] = useState([]);
@@ -87,7 +88,16 @@ export default function ProductsList() {
         };
 
         fetchProducts();
-    }, [genderFilter]); 
+    }, [genderFilter]);
+
+    useEffect(() => {
+        setPageMeta({
+            title: `${pageTitle} | Scentorini`,
+            description: genderFilter
+                ? `Shop Scentorini fragrances for ${genderFilter}. Long-lasting perfumes & oils, delivered across Egypt.`
+                : "Browse the full Scentorini fragrance collection — perfumes, oils, and discovery sets.",
+        });
+    }, [genderFilter, pageTitle]);
     
     // Client-side search + sort over the fetched products
     const visibleProducts = useMemo(() => {

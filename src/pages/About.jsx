@@ -1,6 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { setPageMeta } from "../lib/seo";
 
 export default function About() {
+  useEffect(() => {
+    setPageMeta({
+      title: "About | Scentorini",
+      description:
+        "Scentorini is a Santorini-inspired fragrance brand — capturing the Aegean in every bottle. Not just a perfume, a destination.",
+    });
+  }, []);
+
   return (
     <div className="min-h-screen p-8 flex flex-col items-center bg-gray-50">
 

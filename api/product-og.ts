@@ -108,6 +108,7 @@ export default async function handler(request: Request): Promise<Response> {
   const pageUrl = `${origin}/products/${encodeURIComponent(id)}`;
 
   const tags = `
+    <meta name="description" content="${esc(description)}" />
     <meta property="og:type" content="product" />
     <meta property="og:site_name" content="${esc(SITE_NAME)}" />
     <meta property="og:title" content="${esc(title)}" />

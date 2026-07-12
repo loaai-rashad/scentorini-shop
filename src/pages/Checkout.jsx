@@ -20,6 +20,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import emailjs from '@emailjs/browser';
 import ReactGA from 'react-ga4';
 import { ShieldCheck, BadgeCheck, Truck } from "lucide-react";
+import { pixelTrack } from "../lib/metaPixel";
 
 const EMAILJS_SERVICE_ID = 'service_gl98ck9';
 const EMAILJS_TEMPLATE_ID = 'template_y2k0ghw';
@@ -160,13 +161,21 @@ export default function Checkout() {
     if (cart.length > 0) {
         ReactGA.event('begin_checkout', {
             currency: "EGP",
-            value: subtotal, 
+            value: subtotal,
             items: cart.map(item => ({
                 item_id: item.id,
                 item_name: item.title,
                 price: item.price,
                 quantity: item.quantity,
             }))
+        });
+
+        // --- Meta Pixel: InitiateCheckout ---
+        pixelTrack('InitiateCheckout', {
+            currency: "EGP",
+            value: subtotal,
+            num_items: cart.reduce((sum, item) => sum + (item.quantity || 1), 0),
+            content_ids: cart.map(item => item.id),
         });
     }
   }, [cart, subtotal]);
@@ -274,6 +283,15 @@ export default function Checkout() {
           currency: "EGP",
           coupon: appliedPromo?.code || undefined,
           items: orderItems.map(item => ({ item_id: item.id, item_name: item.title, price: item.price, quantity: item.quantity }))
+      });
+
+      // --- Meta Pixel: Purchase ---
+      pixelTrack('Purchase', {
+          currency: "EGP",
+          value: total,
+          num_items: orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
+          content_ids: orderItems.map(item => item.id),
+          content_type: 'product',
       });
 
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
