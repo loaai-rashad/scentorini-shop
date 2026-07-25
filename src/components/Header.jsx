@@ -4,16 +4,30 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useCart } from "../context/CartContext";
 import Cart from "../pages/Cart"; // Import your new Cart popup
-import { auth, googleProvider } from "../firebase"; 
+import { auth, googleProvider, db } from "../firebase";
 import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, onSnapshot } from "firebase/firestore";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [categories, setCategories] = useState([]);
   const { cart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Live category menu (managed in Admin → Site Settings). Only visible ones, ordered.
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "categories"), (snapshot) => {
+      const data = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((c) => c.visible !== false && c.slug)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      setCategories(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Close menus when route changes
   useEffect(() => {
@@ -118,6 +132,9 @@ const Header = () => {
           <ul className="flex space-x-10 items-center">
             <NavItem to="/">Home</NavItem>
             <NavItem to="/about">About</NavItem>
+            {categories.map((cat) => (
+              <NavItem key={cat.id} to={`/category/${cat.slug}`}>{cat.name}</NavItem>
+            ))}
             {/* Cart Trigger */}
             <button 
               onClick={() => setIsCartOpen(true)}
@@ -198,6 +215,9 @@ const Header = () => {
         <ul className="flex flex-col px-5 py-6 space-y-1">
           <NavItem to="/" onClick={toggleMenu}>Home</NavItem>
           <NavItem to="/about" onClick={toggleMenu}>About</NavItem>
+          {categories.map((cat) => (
+            <NavItem key={cat.id} to={`/category/${cat.slug}`} onClick={toggleMenu}>{cat.name}</NavItem>
+          ))}
           <li>
             <button
               onClick={() => { toggleMenu(); setIsCartOpen(true); }}

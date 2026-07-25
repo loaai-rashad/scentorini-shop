@@ -11,9 +11,10 @@ import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 
 // Component Imports
-import ProductsList from "./components/ProductsList";             
-import ProductPage from "./pages/ProductPage";                   
-import DiscoverySetPage from "./pages/DiscoverySetPage";         
+import ProductsList from "./components/ProductsList";
+import ProductPage from "./pages/ProductPage";
+import CategoryPage from "./pages/CategoryPage";
+import DiscoverySetPage from "./pages/DiscoverySetPage";
 import DiscoveryCardFetcher from "./components/DiscoveryCardFetcher"; 
 import CustomProductSection from "./components/CustomProductSection";
 import AnnouncementBar from "./components/AnnouncementBar.jsx"
@@ -175,7 +176,8 @@ function App() {
           
           {/* Other Routes Remain Untouched */}
           <Route path="/products" element={<ProductsList />} />
-          <Route path="/testers/builder" element={<DiscoverySetPage />} /> 
+          <Route path="/category/:slug" element={<CategoryPage />} />
+          <Route path="/testers/builder" element={<DiscoverySetPage />} />
           <Route path="/products/:id" element={<ProductPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/account" element={<Account />} /> {/* NEW ACCOUNT ROUTE */}

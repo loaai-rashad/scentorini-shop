@@ -24,8 +24,9 @@ import AdminProducts from '../components/admin/AdminProducts';
 import AdminSamples from '../components/admin/AdminSamples';  
 import AdminPromos from '../components/admin/AdminPromos';    
 import AdminInsights from '../components/admin/AdminInsights'; 
-import AdminCustomizableSections from '../components/admin/AdminCustomizableSections'; 
+import AdminCustomizableSections from '../components/admin/AdminCustomizableSections';
 import AdminReviews from '../components/admin/AdminReviews';
+import AdminCategories from '../components/admin/AdminCategories';
 
 import AdminInventory from '../components/admin/AdminInventory';
 import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
@@ -477,6 +478,8 @@ const handleDeleteShippingRate = async (id) => {
       case 'settings':
   return (
     <div className="space-y-8 font-archivo">
+      <AdminCategories products={products} />
+
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Site Announcement Bar</h3>
           <div className="flex flex-col gap-6 max-w-2xl">
