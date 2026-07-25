@@ -1,7 +1,35 @@
 // src/components/admin/AdminOrders.jsx
 import React, { useState, useMemo } from 'react';
-import { Search, MessageCircle, Eye, Trash2, Download, X, Phone, MapPin, CreditCard } from 'lucide-react';
+import { Search, MessageCircle, Eye, Trash2, Download, X, Phone, MapPin, CreditCard, Copy, Check } from 'lucide-react';
 import { toast, confirmDialog } from './ui/notify';
+
+// Small inline "copy to clipboard" button with a brief check confirmation.
+function CopyButton({ value, label }) {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = async (e) => {
+        e.stopPropagation();
+        const text = String(value || "").trim();
+        if (!text || text === "—") return;
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            toast.error("Couldn't copy to clipboard.");
+        }
+    };
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            title={`Copy ${label}`}
+            aria-label={`Copy ${label}`}
+            className="p-1 rounded text-gray-400 hover:text-[#1C3C85] hover:bg-blue-50 transition flex-shrink-0"
+        >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+    );
+}
 
 export default function AdminOrders({
     orders,
@@ -271,10 +299,13 @@ export default function AdminOrders({
                             {/* Customer */}
                             <div>
                                 <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Customer</p>
-                                <p className="font-bold text-gray-900">{detailOrder.customerName || "—"}</p>
-                                <p className="text-sm text-gray-600 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {detailOrder.phoneNumber || "—"}</p>
+                                <div className="flex items-center gap-1">
+                                    <p className="font-bold text-gray-900">{detailOrder.customerName || "—"}</p>
+                                    <CopyButton value={detailOrder.customerName} label="name" />
+                                </div>
+                                <p className="text-sm text-gray-600 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {detailOrder.phoneNumber || "—"} <CopyButton value={detailOrder.phoneNumber} label="phone number" /></p>
                                 {detailOrder.email && <p className="text-sm text-gray-600">{detailOrder.email}</p>}
-                                <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-1"><MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> <span>{detailOrder.address || "—"}, <span className="uppercase">{detailOrder.governorate}</span></span></p>
+                                <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-1"><MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> <span>{detailOrder.address || "—"}, <span className="uppercase">{detailOrder.governorate}</span></span> <CopyButton value={[detailOrder.address, detailOrder.governorate].filter(Boolean).join(", ")} label="address" /></p>
                                 {waLink(detailOrder.phoneNumber) && (
                                     <a href={waLink(detailOrder.phoneNumber)} target="_blank" rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 mt-2 text-xs font-black uppercase tracking-wide text-white bg-[#25D366] rounded-lg py-2 px-3">
