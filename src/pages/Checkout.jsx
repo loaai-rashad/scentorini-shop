@@ -1,5 +1,5 @@
 // src/components/checkout/Checkout.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -29,6 +29,10 @@ const EMAILJS_PUBLIC_KEY = 'jbKrDobPuQ9Eoy-Wl';
 export default function Checkout() {
   const { cart = [], clearCart } = useCart();
   const navigate = useNavigate();
+
+  // Ensures begin_checkout / InitiateCheckout fire only ONCE per checkout visit,
+  // not on every cart/subtotal change (e.g. editing quantity or applying a promo).
+  const checkoutTracked = useRef(false);
 
   // --- FORM STATE ---
   const [firstName, setFirstName] = useState("");
@@ -158,7 +162,10 @@ export default function Checkout() {
   const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost;
   
   useEffect(() => {
-    if (cart.length > 0) {
+    // Fire once, the first time checkout is opened with items in the cart.
+    if (cart.length > 0 && !checkoutTracked.current) {
+        checkoutTracked.current = true;
+
         ReactGA.event('begin_checkout', {
             currency: "EGP",
             value: subtotal,
