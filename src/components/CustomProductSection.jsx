@@ -96,6 +96,10 @@ export default function CustomProductSection({ sectionConfig }) {
                   stock={product.stock}
                   inspiredBy={product.inspiredBy}
                   for={product.for}
+                  discountActive={product.discountActive}
+                  discountType={product.discountType}
+                  discountValue={product.discountValue}
+                  discountLabel={product.discountLabel}
               />
             </div>
           ))}

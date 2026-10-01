@@ -77,6 +77,10 @@ export default function DiscoveryCardFetcher() {
                     price={productData.price || 0.00}
                     stock={productData.stock || 0.00}
                     for={productData.for || "tester"} 
+                    discountActive={productData.discountActive}
+                    discountType={productData.discountType}
+                    discountValue={productData.discountValue}
+                    discountLabel={productData.discountLabel}
                 />
             </div>
         </motion.div>

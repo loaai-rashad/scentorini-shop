@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase'; 
 import { Link } from 'react-router-dom';
+import { getPriceInfo, formatEGP } from '../lib/pricing';
 
 export default function UpsellSection({ currentProduct, allProducts, addToCart }) {
     const [suggestions, setSuggestions] = useState([]);
@@ -54,7 +55,9 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {suggestions.map((item) => (
+                {suggestions.map((item) => {
+                    const offer = getPriceInfo(item, item.price);
+                    return (
                     <div 
                         key={item.id} 
                         className="group flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 hover:border-[#1C3C85]/20 hover:shadow-md transition-all duration-300"
@@ -76,8 +79,15 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
                                 <h4 className="text-xs font-black text-gray-800 truncate uppercase group-hover:text-[#1C3C85] transition-colors">
                                     {item.title}
                                 </h4>
-                                <p className="text-[11px] font-bold text-gray-400 mt-1">
-                                    EGP {item.price}
+                                <p className="flex items-baseline gap-1.5 text-[11px] font-bold mt-1">
+                                    <span className={offer.hasDiscount ? "text-[#C2104A]" : "text-gray-400"}>
+                                        {formatEGP(offer.price)}
+                                    </span>
+                                    {offer.hasDiscount && (
+                                        <span className="text-gray-300 line-through font-medium">
+                                            {formatEGP(offer.original)}
+                                        </span>
+                                    )}
                                 </p>
                             </div>
                         </Link>
@@ -95,7 +105,8 @@ export default function UpsellSection({ currentProduct, allProducts, addToCart }
                             </svg>
                         </button>
                     </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

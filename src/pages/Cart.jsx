@@ -2,6 +2,7 @@ import React from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { X, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
+import { formatEGP } from "../lib/pricing";
 
 export default function Cart({ isOpen, onClose }) {
   const { cart, removeFromCart, clearCart, incrementQuantity, decrementQuantity } = useCart();
@@ -113,8 +114,16 @@ export default function Cart({ isOpen, onClose }) {
                         <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded">1 DISCOVERY SET</span>
                       )}
 
-                      <span className="font-black text-base text-[#1C3C85] italic">
-                        EGP {item.price * item.quantity}
+                      {/* Discounted lines keep the original price visible */}
+                      <span className="flex flex-col items-end leading-tight">
+                        <span className="font-black text-base text-[#1C3C85] italic">
+                          {formatEGP(item.price * item.quantity)}
+                        </span>
+                        {Number(item.originalPrice) > Number(item.price) && (
+                          <span className="text-[10px] font-bold text-gray-400 line-through">
+                            {formatEGP(item.originalPrice * item.quantity)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>

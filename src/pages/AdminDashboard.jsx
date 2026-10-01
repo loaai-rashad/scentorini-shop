@@ -57,7 +57,11 @@ export default function AdminDashboard() {
     description: "", 
     for: "", 
     inspiredBy: "", 
-    sizeOptions: [] 
+    sizeOptions: [], 
+    discountActive: false, 
+    discountType: "percent", 
+    discountValue: "", 
+    discountLabel: "" 
   });
 
   const [loading, setLoading] = useState(true);
@@ -321,6 +325,14 @@ const handleDeleteShippingRate = async (id) => {
     }
   };
 
+  // Normalises the dashboard's discount inputs before they reach Firestore
+  const buildDiscountFields = (product) => ({
+    discountActive: !!product.discountActive,
+    discountType: product.discountType === "fixed" ? "fixed" : "percent",
+    discountValue: Math.max(0, parseFloat(product.discountValue) || 0),
+    discountLabel: String(product.discountLabel || "").trim()
+  });
+
   const handleProductChange = (id, field, value) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
@@ -348,7 +360,8 @@ const handleDeleteShippingRate = async (id) => {
         description: product.description,
         for: product.for, 
         inspiredBy: product.inspiredBy || "", 
-        sizeOptions: cleanedSizes
+        sizeOptions: cleanedSizes,
+        ...buildDiscountFields(product)
       });
       toast.success("Product updated!");
     } catch (error) {
@@ -373,7 +386,8 @@ const handleDeleteShippingRate = async (id) => {
         price: parseFloat(newProduct.price) || 0,
         stock: parseInt(newProduct.stock) || 0,
         images: imagesToSave, 
-        sizeOptions: cleanedSizes 
+        sizeOptions: cleanedSizes, 
+        ...buildDiscountFields(newProduct) 
       });
       
       setNewProduct({ 
@@ -385,7 +399,11 @@ const handleDeleteShippingRate = async (id) => {
        description: "", 
         for: "", 
         inspiredBy: "", 
-        sizeOptions: []
+        sizeOptions: [],
+        discountActive: false,
+        discountType: "percent",
+        discountValue: "",
+        discountLabel: ""
       });
       toast.success("Product added!");
     } catch (error) {

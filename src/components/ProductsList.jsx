@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import LoadingScreen from "./LoadingScreen";
 import ProductGroup from "./ProductGroup";
 import { setPageMeta } from "../lib/seo";
+import { getDiscountedPrice } from "../lib/pricing";
 
 export default function ProductsList() {
     const [products, setProducts] = useState([]);
@@ -112,10 +113,13 @@ export default function ProductsList() {
             );
         }
 
+        // Sort on the effective (discounted) price so offers rank where shoppers expect
+        const effectivePrice = (p) => getDiscountedPrice(p.price, p);
+
         if (sortBy === "price-asc") {
-            list = [...list].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+            list = [...list].sort((a, b) => effectivePrice(a) - effectivePrice(b));
         } else if (sortBy === "price-desc") {
-            list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+            list = [...list].sort((a, b) => effectivePrice(b) - effectivePrice(a));
         }
 
         return list;

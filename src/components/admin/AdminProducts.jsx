@@ -1,7 +1,112 @@
 import React, { useState, useMemo } from 'react';
 import { uploadImage } from "../../lib/uploadImage";
 import { toast } from './ui/notify';
-import { Plus, Trash2, X, Search, ImagePlus, PackagePlus, ChevronDown, Loader2 } from 'lucide-react';
+import { Plus, Trash2, X, Search, ImagePlus, PackagePlus, ChevronDown, Loader2, Tag } from 'lucide-react';
+import { getPriceInfo, formatEGP, DISCOUNT_TYPES } from "../../lib/pricing";
+
+const SALE = "#C2104A";
+
+/**
+ * Discount controls for one product (new or existing).
+ * `onChange(field, value)` writes straight onto the product being edited, so the
+ * same block serves the "New Product" panel and every product card.
+ */
+function DiscountEditor({ product, onChange, inputCls, labelCls }) {
+    const active = !!product.discountActive;
+    const type = product.discountType || "percent";
+    const info = getPriceInfo(product, product.price);
+
+    return (
+        <div className={`mt-3 rounded-xl border p-4 transition-colors ${active ? "border-[#C2104A]/30 bg-[#C2104A]/[0.04]" : "border-gray-100 bg-gray-50"}`}>
+            <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <Tag className="w-3.5 h-3.5" style={active ? { color: SALE } : undefined} />
+                    Discount
+                </span>
+
+                {/* On/off switch — nothing shows on the storefront while this is off */}
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={active}
+                    onClick={() => onChange("discountActive", !active)}
+                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${active ? "bg-[#C2104A]" : "bg-gray-300"}`}
+                >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${active ? "translate-x-5" : ""}`} />
+                </button>
+            </div>
+
+            {active && (
+                <>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label className={labelCls}>Type</label>
+                            <div className="relative">
+                                <select
+                                    value={type}
+                                    onChange={e => onChange("discountType", e.target.value)}
+                                    className={inputCls + " appearance-none pr-8"}
+                                >
+                                    {DISCOUNT_TYPES.map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className={labelCls}>{type === "fixed" ? "Amount Off (EGP)" : "Percent Off (%)"}</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max={type === "fixed" ? undefined : 99}
+                                value={product.discountValue ?? ""}
+                                onChange={e => onChange("discountValue", e.target.value)}
+                                placeholder={type === "fixed" ? "150" : "20"}
+                                className={inputCls + " font-bold"}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-3">
+                        <label className={labelCls}>Offer Label (optional)</label>
+                        <input
+                            type="text"
+                            value={product.discountLabel || ""}
+                            onChange={e => onChange("discountLabel", e.target.value)}
+                            placeholder="e.g. Summer Sale"
+                            className={inputCls}
+                        />
+                    </div>
+
+                    {/* Live preview of exactly what the customer will see */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                        {info.hasDiscount ? (
+                            <>
+                                <span className="text-gray-400 line-through">{formatEGP(info.original)}</span>
+                                <span className="font-black" style={{ color: SALE }}>{formatEGP(info.price)}</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white" style={{ backgroundColor: SALE }}>
+                                    {info.badge}
+                                </span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                    Saves {formatEGP(info.amountOff)}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                Enter a value above 0 to apply the offer.
+                            </span>
+                        )}
+                    </div>
+
+                    <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                        Applies to the base price and every size option of this product.
+                    </p>
+                </>
+            )}
+        </div>
+    );
+}
 
 export default function AdminProducts({
     products,
@@ -183,7 +288,14 @@ export default function AdminProducts({
                         </div>
                     </div>
 
-                    <button onClick={handleAddProduct} className="w-full bg-[#1C3C85] text-white py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-blue-800 transition shadow-sm">
+                    <DiscountEditor
+                        product={newProduct}
+                        onChange={(field, value) => setNewProduct(prev => ({ ...prev, [field]: value }))}
+                        inputCls={inputCls}
+                        labelCls={labelCls}
+                    />
+
+                    <button onClick={handleAddProduct} className="w-full mt-4 bg-[#1C3C85] text-white py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-blue-800 transition shadow-sm">
                         Save New Product
                     </button>
                 </div>
@@ -205,6 +317,7 @@ export default function AdminProducts({
                     {filteredProducts.map(p => {
                         const stock = Number(p.stock) || 0;
                         const stockTone = stock <= 0 ? "bg-red-100 text-red-700" : stock <= 5 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700";
+                        const offer = getPriceInfo(p, p.price);
                         return (
                             <div key={p.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
                                 {/* Top: image + title/subtitle + stock badge */}
@@ -214,9 +327,17 @@ export default function AdminProducts({
                                         <input type="text" value={p.title} onChange={e => handleProductChange(p.id, "title", e.target.value)} className="font-bold border border-gray-200 rounded-lg p-1.5 w-full text-sm" />
                                         <input type="text" value={p.subtitle} onChange={e => handleProductChange(p.id, "subtitle", e.target.value)} placeholder="Subtitle" className="text-gray-500 text-xs border border-gray-200 rounded-lg p-1.5 w-full" />
                                     </div>
-                                    <span className={`self-start px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${stockTone}`}>
-                                        {stock <= 0 ? "Out" : `${stock} left`}
-                                    </span>
+                                    <div className="self-start flex flex-col items-end gap-1.5">
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${stockTone}`}>
+                                            {stock <= 0 ? "Out" : `${stock} left`}
+                                        </span>
+                                        {/* Lets admins spot live offers while scanning the list */}
+                                        {offer.hasDiscount && (
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap" style={{ backgroundColor: SALE }}>
+                                                {offer.badge}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Gallery thumbnails with remove + upload */}
@@ -261,6 +382,14 @@ export default function AdminProducts({
                                     ))}
                                     <button onClick={() => handleAddSizeOption(false, p.id)} className="flex items-center gap-1 text-[#1C3C85] font-black text-[11px] uppercase tracking-widest"><Plus className="w-3.5 h-3.5" /> Add Size</button>
                                 </div>
+
+                                {/* Discount */}
+                                <DiscountEditor
+                                    product={p}
+                                    onChange={(field, value) => handleProductChange(p.id, field, value)}
+                                    inputCls={inputCls}
+                                    labelCls={labelCls}
+                                />
 
                                 {/* Actions */}
                                 <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">

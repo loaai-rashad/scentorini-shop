@@ -2,8 +2,9 @@
 import { useState, type MouseEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { ShoppingCart, Check, Sparkles } from "lucide-react";
+import { ShoppingCart, Check, Sparkles, Tag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { getPriceInfo, formatEGP } from "@/lib/pricing";
 
 export default function ProductCard({
   id,
@@ -15,6 +16,11 @@ export default function ProductCard({
   stock = 0,
   inspiredBy = "",
   for: productFor,
+  // Discount fields (managed from the dashboard) — see src/lib/pricing.js
+  discountActive = false,
+  discountType = "percent",
+  discountValue = 0,
+  discountLabel = "",
   className = "",
 }) {
   const { addToCart } = useCart();
@@ -32,6 +38,12 @@ export default function ProductCard({
     : String(productFor).toLowerCase() === 'him'
     ? 'For Him'
     : null;
+
+  // LOGIC: Discounted pricing — one helper keeps card, product page and cart in sync
+  const priceInfo = getPriceInfo(
+    { discountActive, discountType, discountValue, discountLabel },
+    price
+  );
 
   // LOGIC: Stock state for badges / urgency
   const isOut = Number(stock) <= 0;
@@ -52,7 +64,9 @@ export default function ProductCard({
       id,
       title,
       subtitle,
-      price: Number(price) || 0,
+      // Charge the discounted price, but keep the original so the bag can show the saving
+      price: priceInfo.price,
+      originalPrice: priceInfo.hasDiscount ? priceInfo.original : null,
       stock,
       image,
       images,
@@ -86,16 +100,24 @@ export default function ProductCard({
           {/* Subtle gradient for depth + badge legibility */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
-          {/* Top-left status badge */}
-          {isOut ? (
-            <span className="absolute top-3 left-3 bg-gray-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
-              Sold Out
-            </span>
-          ) : isLow ? (
-            <span className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shadow-sm">
-              Only {stock} left
-            </span>
-          ) : null}
+          {/* Top-left badge stack: the offer leads, stock urgency sits under it */}
+          <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
+            {priceInfo.hasDiscount && (
+              <span className="flex items-center gap-1 bg-[#C2104A] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-md">
+                <Tag className="w-3 h-3" />
+                {priceInfo.badge}
+              </span>
+            )}
+            {isOut ? (
+              <span className="bg-gray-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
+                Sold Out
+              </span>
+            ) : isLow ? (
+              <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shadow-sm">
+                Only {stock} left
+              </span>
+            ) : null}
+          </div>
 
           {/* Top-right gender tag */}
           {genderLabel && (
@@ -128,9 +150,22 @@ export default function ProductCard({
           {/* LOGIC: Conditional Price/Availability Display */}
           <div className="mt-auto pt-3 border-t border-gray-100 flex justify-between items-center gap-2">
             {!isOut ? (
-              <span className="text-base md:text-lg font-extrabold text-[#1C3C85]">
-                {isTester ? `From EGP ${price}` : `EGP ${price.toLocaleString()}`}
-              </span>
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="text-base md:text-lg font-extrabold text-[#1C3C85]">
+                  {isTester ? `From ${formatEGP(priceInfo.price)}` : formatEGP(priceInfo.price)}
+                </span>
+                {/* Was-price + saving, so the offer is readable without opening the product */}
+                {priceInfo.hasDiscount && (
+                  <span className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-[11px] text-stone-400 line-through">
+                      {formatEGP(priceInfo.original)}
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-wide text-[#C2104A]">
+                      Save {priceInfo.percentOff}%
+                    </span>
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="text-red-600 font-bold text-xs uppercase">
                 Unavailable

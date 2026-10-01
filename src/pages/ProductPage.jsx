@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Star, Minus, Plus, Truck, BadgeCheck, Sparkles, FlaskConical } from "lucide-react";
+import { Star, Minus, Plus, Truck, BadgeCheck, Sparkles, FlaskConical, Tag } from "lucide-react";
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
@@ -8,6 +8,7 @@ import LoadingScreen from "../components/LoadingScreen";
 import ReactGA from 'react-ga4';
 import { pixelTrack } from "../lib/metaPixel";
 import { setPageMeta } from "../lib/seo";
+import { getPriceInfo, getDiscountedPrice, formatEGP } from "../lib/pricing";
 
 // Review Components
 import ReviewSlider from "../components/ReviewSlider";
@@ -83,13 +84,16 @@ export default function ProductPage() {
           setProduct(productWithImages);
           setMainImage(cleanImages[0] || "/perfume.jpeg");
 
+          // Analytics should report the price the customer actually pays
+          const trackedPrice = getDiscountedPrice(productData.price, productData);
+
           ReactGA.event('view_item', {
               currency: "EGP",
-              value: Number(productData.price) || 0,
+              value: trackedPrice,
               items: [{
                   item_id: productData.id,
                   item_name: productData.title,
-                  price: Number(productData.price) || 0,
+                  price: trackedPrice,
               }]
           });
 
@@ -98,7 +102,7 @@ export default function ProductPage() {
               content_ids: [productData.id],
               content_name: productData.title,
               content_type: 'product',
-              value: Number(productData.price) || 0,
+              value: trackedPrice,
               currency: 'EGP',
           });
 
@@ -145,10 +149,14 @@ export default function ProductPage() {
   const handleAddToCart = (itemToTarget = null) => {
     const target = itemToTarget || product;
    
-    // Determine the final price based on selection
-    const finalPrice = itemToTarget 
+    // Determine the base price based on selection, then apply that product's discount
+    const basePrice = itemToTarget 
       ? Number(itemToTarget.price) 
       : (selectedSize ? Number(selectedSize.price) : Number(product.price));
+
+    // Upsell items carry their own discount; the main product uses the one on this page
+    const finalPrice = getDiscountedPrice(basePrice, target);
+    const hasOffer = finalPrice < Math.round(Number(basePrice) || 0);
 
     // Determine the label for the size
     const finalSizeLabel = itemToTarget 
@@ -159,6 +167,7 @@ export default function ProductPage() {
     const cartItem = {
       ...target,
       price: finalPrice || 0,
+      originalPrice: hasOffer ? Math.round(Number(basePrice) || 0) : null,
     };
     
     // CRITICAL FIX: Pass the size as the SECOND argument to match CartContext.
@@ -186,9 +195,9 @@ export default function ProductPage() {
   const uniqueGalleryImages = product.uniqueGalleryImages || [];
   const currentMainImage = mainImage || uniqueGalleryImages[0] || "/perfume.jpeg";
 
-  const displayedPrice = selectedSize?.price
-    ? Number(selectedSize.price)
-    : (Number(product.price) || 0);
+  // Price shown on the page: the selected size's price, discounted when an offer is live
+  const priceInfo = getPriceInfo(product, selectedSize?.price ? selectedSize.price : product.price);
+  const displayedPrice = priceInfo.price;
 
   // --- Review summary (uses the reviews already fetched for this product) ---
   const reviewCount = reviews.length;
@@ -286,10 +295,34 @@ export default function ProductPage() {
               </div>
           )}
 
-          <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-stone-900">
-                EGP {displayedPrice.toLocaleString()}
-              </span>
+          <div className="flex flex-col gap-2">
+              <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+                  <span className={`text-3xl font-black ${priceInfo.hasDiscount ? "text-[#C2104A]" : "text-stone-900"}`}>
+                    {formatEGP(displayedPrice)}
+                  </span>
+                  {priceInfo.hasDiscount && (
+                      <>
+                          <span className="text-lg font-bold text-stone-400 line-through">
+                            {formatEGP(priceInfo.original)}
+                          </span>
+                          <span className="bg-[#C2104A] text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                            {priceInfo.badge}
+                          </span>
+                      </>
+                  )}
+              </div>
+
+              {/* Offer strip — states the saving plainly right under the price */}
+              {priceInfo.hasDiscount && (
+                  <div className="flex items-center gap-2 bg-[#C2104A]/5 border border-[#C2104A]/20 rounded-xl px-3 py-2">
+                      <Tag className="w-4 h-4 text-[#C2104A] flex-shrink-0" />
+                      <p className="text-xs font-bold uppercase tracking-wide text-stone-700">
+                          {priceInfo.label ? `${priceInfo.label} · ` : ""}
+                          You save <span className="text-[#C2104A]">{formatEGP(priceInfo.amountOff)}</span>
+                          {" "}({priceInfo.percentOff}% off)
+                      </p>
+                  </div>
+              )}
           </div>
 
           {/* SIZE SELECTOR */}
@@ -461,7 +494,16 @@ export default function ProductPage() {
         />
         <div className="flex-1 min-w-0">
           <p className="text-xs text-stone-500 truncate">{product.title}</p>
-          <p className="text-base font-black text-stone-900">EGP {displayedPrice.toLocaleString()}</p>
+          <p className="flex items-baseline gap-1.5">
+            <span className={`text-base font-black ${priceInfo.hasDiscount ? "text-[#C2104A]" : "text-stone-900"}`}>
+              {formatEGP(displayedPrice)}
+            </span>
+            {priceInfo.hasDiscount && (
+              <span className="text-[11px] font-bold text-stone-400 line-through">
+                {formatEGP(priceInfo.original)}
+              </span>
+            )}
+          </p>
         </div>
         {inStock ? (
           <button
