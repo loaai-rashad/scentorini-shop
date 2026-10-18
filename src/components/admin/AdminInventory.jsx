@@ -98,7 +98,7 @@ export default function AdminInventory() {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 p-4">
+        <div className="flex flex-col lg:flex-row gap-6 sm:p-4">
             {/* Sidebar: Your History */}
             <div className="w-full lg:w-1/4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                 <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Saved Drops</h3>
@@ -118,23 +118,25 @@ export default function AdminInventory() {
             </div>
 
             {/* Main Form */}
-            <div className="flex-1 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
+            <div className="flex-1 min-w-0 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
                     <h2 className="text-xl font-black text-[#1C3C85] uppercase italic">{currentDropId ? 'Editing Drop' : 'New Drop Analysis'}</h2>
                     <button onClick={handleSaveOrUpdate} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest">
                         {currentDropId ? 'Update Record' : 'Save New Drop'}
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                    <input className="p-3 border rounded-xl bg-gray-50 outline-none font-bold" placeholder="Drop Name" value={dropName} onChange={(e) => setDropName(e.target.value)} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <input className="min-w-0 p-3 border rounded-xl bg-gray-50 outline-none font-bold" placeholder="Drop Name" value={dropName} onChange={(e) => setDropName(e.target.value)} />
                     <div className="flex gap-2">
-                        <input type="date" className="p-3 border rounded-xl bg-gray-50 w-full text-xs font-bold" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                        <input type="date" className="p-3 border rounded-xl bg-gray-50 w-full text-xs font-bold" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                        <input type="date" className="min-w-0 p-3 border rounded-xl bg-gray-50 w-full text-xs font-bold" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                        <input type="date" className="min-w-0 p-3 border rounded-xl bg-gray-50 w-full text-xs font-bold" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                     </div>
                 </div>
 
-                <table className="w-full mb-4">
+                {/* Scrolls sideways on its own on phones instead of widening the page */}
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-4">
+                <table className="w-full min-w-[480px]">
                     <thead className="text-[10px] text-gray-400 uppercase font-black">
                         <tr><th className="pb-2">Brand</th><th className="pb-2">Item</th><th className="pb-2">Qty</th><th className="pb-2">Cost</th><th className="pb-2 text-right">Total</th></tr>
                     </thead>
@@ -150,10 +152,11 @@ export default function AdminInventory() {
                         ))}
                     </tbody>
                 </table>
+                </div>
                 
                 <button onClick={() => setItems([...items, { brand: '', name: '', qty: 0, price: 0 }])} className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">+ Add Row</button>
 
-                <div className="flex justify-between items-center bg-[#1C3C85] p-6 rounded-3xl text-white">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center bg-[#1C3C85] p-6 rounded-3xl text-white">
                     <div>
                         <p className="text-[10px] font-bold uppercase opacity-60">Inventory Investment</p>
                         <h4 className="text-2xl font-black">EGP {items.reduce((acc, i) => acc + (i.qty * i.price), 0).toLocaleString()}</h4>

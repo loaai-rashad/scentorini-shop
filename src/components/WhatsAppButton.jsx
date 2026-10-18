@@ -1,8 +1,13 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import { WHATSAPP_NUMBER } from "../config";
 
 // Floating WhatsApp contact button — high-converting for the Egyptian market.
 export default function WhatsAppButton() {
+  const { pathname } = useLocation();
+  // Customer-facing only — on the admin pages it just covers the controls.
+  if (pathname.startsWith("/admin")) return null;
+
   const message = encodeURIComponent("Hi Scentorini! I have a question about your fragrances.");
   const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
 

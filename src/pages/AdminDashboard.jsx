@@ -15,6 +15,7 @@ import {
   deleteField, 
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { normalizeCode } from "../lib/promo";
 import { uploadImage } from "../lib/uploadImage";
 import { useNavigate } from "react-router-dom";
 
@@ -46,7 +47,6 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('orders'); 
   
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
-  const [newPromo, setNewPromo] = useState({ code: "", discount: "" });
   
   const [newProduct, setNewProduct] = useState({
     title: "", 
@@ -137,18 +137,14 @@ const handleDeleteShippingRate = async (id) => {
     fetchSettings();
   }, []);
 
-  useEffect(() => { 
-    const fetchPromoCodes = async () => {
-        try {
-            const promoRef = collection(db, "promocodes");
-            const promoSnap = await getDocs(promoRef);
-            const promoData = promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setPromoCodes(promoData);
-        } catch (error) {
-            console.error("Error fetching promo codes:", error);
-        }
-    };
-    fetchPromoCodes();
+  useEffect(() => {
+    // Live, so usage/status changes show up without a refresh.
+    const unsubscribe = onSnapshot(
+      collection(db, "promocodes"),
+      snapshot => setPromoCodes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+      error => console.error("Error fetching promo codes:", error)
+    );
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => { 
@@ -280,21 +276,29 @@ const handleDeleteShippingRate = async (id) => {
     }
   };
 
-  const handleCreatePromo = async () => {
-    if (!newPromo.code || !newPromo.discount) return toast.error("Enter a code and discount.");
+  // Creates (no id) or updates (id) a promo. `data` is already cleaned by AdminPromos.
+  // Returns true on success so the form knows to close.
+  const handleSavePromo = async (data, id = null) => {
+    const normalized = normalizeCode(data.code);
+    if (!normalized) { toast.error("Enter a code."); return false; }
+    // Orders store the code exactly as saved, so keep an older code's original casing.
+    const existing = id ? promoCodes.find(p => p.id === id) : null;
+    const code = existing && normalizeCode(existing.code) === normalized ? existing.code : normalized;
+    const taken = promoCodes.some(p => p.id !== id && normalizeCode(p.code) === normalized);
+    if (taken) { toast.error(`"${code}" already exists.`); return false; }
     try {
-      await addDoc(collection(db, "promocodes"), {
-        code: newPromo.code,
-        discount: parseFloat(newPromo.discount),
-        active: true,
-      });
-      setNewPromo({ code: "", discount: "" });
-      const promoSnap = await getDocs(collection(db, "promocodes"));
-      setPromoCodes(promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      toast.success("Promo code created.");
+      if (id) {
+        await updateDoc(doc(db, "promocodes", id), { ...data, code, updatedAt: new Date() });
+        toast.success("Promo code updated.");
+      } else {
+        await addDoc(collection(db, "promocodes"), { ...data, code, active: true, createdAt: new Date() });
+        toast.success("Promo code created.");
+      }
+      return true;
     } catch (error) {
-      console.error("Error creating promo:", error);
-      toast.error("Failed to create promo code.");
+      console.error("Error saving promo:", error);
+      toast.error("Failed to save promo code.");
+      return false;
     }
   };
 
@@ -302,9 +306,6 @@ const handleDeleteShippingRate = async (id) => {
     try {
       const promoRef = doc(db, "promocodes", promo.id);
       await updateDoc(promoRef, { active: !promo.active });
-      setPromoCodes(prev =>
-        prev.map(p => (p.id === promo.id ? { ...p, active: !p.active } : p))
-      );
     } catch (error) {
       console.error("Error toggling promo:", error);
       toast.error("Failed to toggle promo code.");
@@ -316,8 +317,6 @@ const handleDeleteShippingRate = async (id) => {
     try {
       const promoRef = doc(db, "promocodes", id);
       await deleteDoc(promoRef);
-      // Update the local state so the UI removes it immediately
-      setPromoCodes(prev => prev.filter(p => p.id !== id));
       toast.success("Promo code deleted.");
     } catch (error) {
       console.error("Error deleting promo:", error);
@@ -482,7 +481,7 @@ const handleDeleteShippingRate = async (id) => {
       case 'samples':
         return <AdminSamples samples={samples} newSample={newSample} setNewSample={setNewSample} handleSampleChange={handleSampleChange} handleSaveSample={handleSaveSample} handleAddSample={handleAddSample} handleDeleteSample={handleDeleteSample} />;
       case 'promos':
-        return <AdminPromos promoCodes={promoCodes} newPromo={newPromo} setNewPromo={setNewPromo} handleCreatePromo={handleCreatePromo} togglePromoActive={togglePromoActive} handleDeletePromo={handleDeletePromo} />;
+        return <AdminPromos promoCodes={promoCodes} orders={orders} handleSavePromo={handleSavePromo} togglePromoActive={togglePromoActive} handleDeletePromo={handleDeletePromo} />;
       case 'insights': 
         return <AdminInsights />;
       case 'sections': 
@@ -684,9 +683,9 @@ const handleDeleteShippingRate = async (id) => {
 
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-archivo">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-[#1C3C85]">Admin Dashboard</h1>
-        <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-red-700 transition">Logout</button>
+      <div className="flex justify-between items-center gap-3 mb-2">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-tight text-[#1C3C85]">Admin Dashboard</h1>
+        <button onClick={handleLogout} className="flex-shrink-0 bg-red-600 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-red-700 transition">Logout</button>
       </div>
 
       {/* Headline KPIs */}
@@ -743,8 +742,9 @@ const handleDeleteShippingRate = async (id) => {
         </div>
       )}
 
-      <div className="border-b border-gray-200 overflow-x-auto">
-        <nav className="-mb-px flex space-x-8">
+      {/* Phones/tablets/small laptops: wrapped pills so every tab is visible. Wide screens: underline tabs. */}
+      <div className="xl:border-b xl:border-gray-200">
+        <nav className="flex flex-wrap gap-2 xl:gap-0 xl:flex-nowrap xl:-mb-px xl:space-x-5 xl:overflow-x-auto">
           {[
             { id: 'orders', name: 'Orders' },
             { id: 'products', name: 'Products' },
@@ -760,7 +760,7 @@ const handleDeleteShippingRate = async (id) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap py-3 px-1 border-b-2 font-bold uppercase tracking-tight text-sm transition-colors ${activeTab === tab.id ? 'border-[#1C3C85] text-[#1C3C85]' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+              className={`whitespace-nowrap font-bold uppercase tracking-tight transition-colors px-3 py-1.5 rounded-full text-[11px] border xl:rounded-none xl:border-0 xl:border-b-2 xl:py-3 xl:px-1 xl:text-sm ${activeTab === tab.id ? 'bg-[#1C3C85] text-white border-[#1C3C85] xl:bg-transparent xl:text-[#1C3C85]' : 'bg-white text-gray-500 border-gray-200 xl:border-transparent xl:bg-transparent hover:border-gray-300 hover:text-gray-700'}`}
             >
               {tab.name}
             </button>

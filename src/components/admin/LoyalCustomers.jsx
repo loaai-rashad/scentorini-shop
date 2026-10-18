@@ -50,14 +50,38 @@ export default function LoyalCustomers({ orders }) {
 
     return (
         <div className="p-4 bg-white rounded shadow mt-8">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap gap-2 justify-between items-center mb-6">
                 <h2 className="text-xl font-black font-archivo uppercase text-[#1C3C85]">
                     Loyal Customers <span className="text-sm bg-blue-100 px-2 py-1 rounded ml-2">{loyalData.length}</span>
                 </h2>
                 <p className="text-xs text-gray-500 font-bold uppercase">Threshold: 2+ Orders</p>
             </div>
 
-            <div className="overflow-x-auto border rounded-lg">
+            {/* Mobile: stacked cards */}
+            <ul className="md:hidden space-y-3">
+                {loyalData.map((customer, idx) => (
+                    <li key={idx} className="border rounded-xl p-4 space-y-2">
+                        <div className="flex justify-between items-start gap-3">
+                            <span className="font-bold text-gray-800 min-w-0 break-words">{customer.name}</span>
+                            <span className="flex-shrink-0 text-[10px] font-black uppercase bg-blue-50 text-blue-600 px-2 py-1 rounded-full">{customer.orderCount} orders</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            {[...customer.phones].map(p => (
+                                <span key={p} className="text-[11px] font-mono bg-gray-100 w-fit px-1 rounded">{p}</span>
+                            ))}
+                            {[...customer.emails].map(e => (
+                                <span key={e} className="text-[11px] text-blue-600 break-all">{e}</span>
+                            ))}
+                        </div>
+                        <div className="flex justify-between items-baseline border-t pt-2">
+                            <span className="font-black text-[#1C3C85]">EGP {customer.totalSpent.toLocaleString()}</span>
+                            <span className="text-xs text-gray-500">Last: {customer.lastOrder.toLocaleDateString('en-GB')}</span>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            <div className="hidden md:block overflow-x-auto border rounded-lg">
                 <table className="min-w-full table-auto border-collapse">
                     <thead className="bg-gray-50 font-archivo text-[10px] uppercase tracking-widest text-gray-600">
                         <tr>

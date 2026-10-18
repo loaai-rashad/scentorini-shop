@@ -21,6 +21,14 @@ import emailjs from '@emailjs/browser';
 import ReactGA from 'react-ga4';
 import { ShieldCheck, BadgeCheck, Truck } from "lucide-react";
 import { pixelTrack } from "../lib/metaPixel";
+import {
+  findPromoByCode,
+  fetchPromoOrders,
+  validatePromo,
+  computePromoDiscount,
+  customerUses,
+  describeDiscount,
+} from "../lib/promo";
 
 const EMAILJS_SERVICE_ID = 'service_gl98ck9';
 const EMAILJS_TEMPLATE_ID = 'template_y2k0ghw';
@@ -52,7 +60,9 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoOrders, setPromoOrders] = useState([]); // orders that already used appliedPromo
   const [promoError, setPromoError] = useState("");
+  const [applyingPromo, setApplyingPromo] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("InstaPay");
   const [instapayPhone, setInstapayPhone] = useState("");
   const [formError, setFormError] = useState("");
@@ -60,6 +70,8 @@ export default function Checkout() {
   // --- LOYALTY STATE ---
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
   const [loyaltyMessage, setLoyaltyMessage] = useState("");
+  // Previous orders for the typed email (null = not checked yet). Used by promo rules too.
+  const [customerOrderCount, setCustomerOrderCount] = useState(null);
 
   // --- 1. FETCH DYNAMIC SHIPPING RATES ---
   useEffect(() => {
@@ -84,6 +96,7 @@ export default function Checkout() {
       if (!emailToCheck) {
         setLoyaltyDiscount(0);
         setLoyaltyMessage("");
+        setCustomerOrderCount(null);
         return;
       }
 
@@ -91,6 +104,7 @@ export default function Checkout() {
         const q = query(collection(db, "orders"), where("email", "==", emailToCheck));
         const snap = await getDocs(q);
         const orderCount = snap.size;
+        setCustomerOrderCount(orderCount);
 
         // Reward every 5th order (4 prev orders, 9 prev orders, etc)
         if (orderCount > 0 && (orderCount + 1) % 5 === 0) {
@@ -122,42 +136,70 @@ export default function Checkout() {
     const input = promoInput.trim();
     if (!input) return;
 
+    setApplyingPromo(true);
     try {
-      const q = query(
-        collection(db, "promocodes"), 
-        where("code", "in", [input, input.toLowerCase(), input.toUpperCase()])
-      );
-      
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
+      const promo = await findPromoByCode(input);
+      if (!promo) {
         setPromoError("Promo code not found.");
-        setAppliedPromo(null);
         return;
       }
 
-      const promoDoc = snapshot.docs[0].data();
-      if (!promoDoc.active) {
-        setPromoError("Promo code is inactive.");
-        setAppliedPromo(null);
+      const usedBy = await fetchPromoOrders(promo.code);
+      // Only hard failures (expired, used up, ...) are rejected here. Soft ones like the
+      // minimum order stay attached and show a hint until the cart qualifies.
+      const check = validatePromo(promo, { subtotal, usedCount: usedBy.length });
+      if (!check.ok && check.blocking) {
+        setPromoError(check.reason);
         return;
       }
 
-      setAppliedPromo({ code: promoDoc.code, discount: Number(promoDoc.discount) });
+      setAppliedPromo(promo);
+      setPromoOrders(usedBy);
       setPromoInput("");
     } catch (error) {
       console.error("Error applying promo:", error);
       setPromoError("Failed to apply promo code.");
+    } finally {
+      setApplyingPromo(false);
     }
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoOrders([]);
+    setPromoError("");
   };
 
   // --- TOTALS CALCULATION ---
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const promoDiscountAmount = appliedPromo ? (appliedPromo.discount / 100) * subtotal : 0;
-  
-  // Calculate Loyalty Discount after promo is applied
+
+  // Re-checked on every render, so cart edits / email changes are always reflected.
+  const promoCheck = appliedPromo
+    ? validatePromo(appliedPromo, {
+        subtotal,
+        usedCount: promoOrders.length,
+        customerUseCount: customerUses(promoOrders, { email: form.email, phone: form.phone }),
+        customerOrderCount: customerOrderCount || 0,
+        customerKnown: customerOrderCount !== null,
+      })
+    : null;
+  let promoDiscountAmount = promoCheck?.ok ? computePromoDiscount(appliedPromo, subtotal) : 0;
+
+  // Promo first, then loyalty on what's left. A promo that doesn't stack with the
+  // loyalty reward is dropped when the reward is worth more (customer gets the better one).
+  let promoLostToLoyalty = false;
+  if (promoDiscountAmount > 0 && loyaltyDiscount > 0 && appliedPromo.stackWithLoyalty === false) {
+    if ((loyaltyDiscount / 100) * subtotal >= promoDiscountAmount) {
+      promoDiscountAmount = 0;
+      promoLostToLoyalty = true;
+    }
+  }
+  const promoApplied = promoDiscountAmount > 0;
+  const loyaltyBlockedByPromo =
+    promoApplied && loyaltyDiscount > 0 && appliedPromo.stackWithLoyalty === false;
+
   const subtotalAfterPromo = subtotal - promoDiscountAmount;
-  const loyaltyDiscountAmount = (loyaltyDiscount / 100) * subtotalAfterPromo;
+  const loyaltyDiscountAmount = loyaltyBlockedByPromo ? 0 : (loyaltyDiscount / 100) * subtotalAfterPromo;
 
   const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost;
   
@@ -210,6 +252,40 @@ export default function Checkout() {
     let validationFailed = false;
 
     try {
+      // Re-check the promo against fresh data: another customer may have used the last
+      // slot, or the admin may have paused/edited it since it was applied.
+      if (appliedPromo && promoApplied) {
+        const freshPromo = await findPromoByCode(appliedPromo.code);
+        const freshOrders = freshPromo ? await fetchPromoOrders(freshPromo.code) : [];
+        const emailOrders = await getDocs(query(collection(db, "orders"), where("email", "==", form.email.trim().toLowerCase())));
+        const freshCheck = freshPromo
+          ? validatePromo(freshPromo, {
+              subtotal,
+              usedCount: freshOrders.length,
+              customerUseCount: customerUses(freshOrders, { email: form.email, phone: form.phone }),
+              customerOrderCount: emailOrders.size,
+              customerKnown: true,
+            })
+          : { ok: false, reason: "This promo code is no longer available." };
+        const freshAmount = freshCheck.ok ? computePromoDiscount(freshPromo, subtotal) : 0;
+        if (!freshCheck.ok || freshAmount !== promoDiscountAmount) {
+          if (freshPromo) {
+            setAppliedPromo(freshPromo);
+            setPromoOrders(freshOrders);
+          } else {
+            removePromo();
+          }
+          setCustomerOrderCount(emailOrders.size);
+          setFormError(
+            freshCheck.ok
+              ? "Your promo code was updated. Please review your new total and confirm again."
+              : `${freshCheck.reason} Please review your total and confirm again.`
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
       for (const item of cart) {
         if (item.isCustomSet) {
           for (const sample of item.selectedSamples) {
@@ -270,10 +346,13 @@ export default function Checkout() {
         subtotal,
         shipping: currentShippingCost,
         discount: promoDiscountAmount + loyaltyDiscountAmount, // Combined discount for records
+        promoDiscount: promoDiscountAmount,
+        loyaltyDiscountAmount,
         total,
-        promoCode: appliedPromo?.code || null,
-        loyaltyApplied: loyaltyDiscount > 0,
-        isLoyaltyOrder: loyaltyDiscount > 0, // THE FLAG FOR ADMIN DASHBOARD
+        // Only record the code when it actually gave a discount — this is what usage limits count.
+        promoCode: promoApplied ? appliedPromo.code : null,
+        loyaltyApplied: loyaltyDiscountAmount > 0,
+        isLoyaltyOrder: loyaltyDiscountAmount > 0, // THE FLAG FOR ADMIN DASHBOARD
         paymentMethod: paymentMethod, 
         instapayPhone: paymentMethod === "InstaPay" ? instapayPhone.trim() : null,
         createdAt: serverTimestamp(),
@@ -288,7 +367,7 @@ export default function Checkout() {
           value: total,
           shipping: currentShippingCost,
           currency: "EGP",
-          coupon: appliedPromo?.code || undefined,
+          coupon: promoApplied ? appliedPromo.code : undefined,
           items: orderItems.map(item => ({ item_id: item.id, item_name: item.title, price: item.price, quantity: item.quantity }))
       });
 
@@ -374,12 +453,29 @@ export default function Checkout() {
 
           <textarea name="address" placeholder="Detailed Address" value={form.address} onChange={handleChange} className="w-full border p-3 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none min-h-[100px]" required />
 
-          <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
-            <input type="text" placeholder="Promo code" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 bg-transparent p-2 outline-none text-sm" />
-            <button type="button" onClick={handleApplyPromo} className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">Apply</button>
-          </div>
+          {appliedPromo ? (
+            <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border ${promoApplied ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+              <div className="min-w-0">
+                <p className={`text-xs font-black uppercase tracking-widest ${promoApplied ? "text-green-700" : "text-amber-700"}`}>
+                  {appliedPromo.code} · {describeDiscount(appliedPromo)}
+                </p>
+                <p className={`text-[11px] font-medium ${promoApplied ? "text-green-700" : "text-amber-700"}`}>
+                  {promoApplied
+                    ? `You save EGP ${promoDiscountAmount.toLocaleString()}${loyaltyBlockedByPromo ? " (can't be combined with your loyalty reward)" : ""}`
+                    : promoLostToLoyalty
+                      ? "Your loyalty reward is bigger, so we applied that instead."
+                      : promoCheck?.reason}
+                </p>
+              </div>
+              <button type="button" onClick={removePromo} className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-red-600 shrink-0">Remove</button>
+            </div>
+          ) : (
+            <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border">
+              <input type="text" placeholder="Promo code" value={promoInput} onChange={e => setPromoInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleApplyPromo(); } }} className="flex-1 bg-transparent p-2 outline-none text-sm uppercase" />
+              <button type="button" onClick={handleApplyPromo} disabled={applyingPromo} className="bg-[#1C3C85] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest disabled:opacity-50">{applyingPromo ? "..." : "Apply"}</button>
+            </div>
+          )}
           {promoError && <p className="text-red-500 text-[10px] font-bold uppercase ml-2">{promoError}</p>}
-          {appliedPromo && <p className="text-green-600 text-[10px] font-bold uppercase ml-2">Code Applied!</p>}
 
           {/* Loyalty Message Display */}
           {loyaltyMessage && <p className="text-orange-600 text-[10px] font-bold uppercase ml-2 animate-pulse">{loyaltyMessage}</p>}
@@ -474,8 +570,8 @@ export default function Checkout() {
                   <span className="text-gray-400 normal-case font-medium">Select destination</span>
                 )}
               </div>
-              {appliedPromo && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo Discount</span><span>-{promoDiscountAmount.toLocaleString()} EGP</span></div>}
-              {loyaltyDiscount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount</span><span>-{loyaltyDiscountAmount.toLocaleString()} EGP</span></div>}
+              {promoApplied && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo ({appliedPromo.code})</span><span>-{promoDiscountAmount.toLocaleString()} EGP</span></div>}
+              {loyaltyDiscountAmount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount</span><span>-{loyaltyDiscountAmount.toLocaleString()} EGP</span></div>}
               <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toLocaleString()} EGP</span></div>
             </div>
 

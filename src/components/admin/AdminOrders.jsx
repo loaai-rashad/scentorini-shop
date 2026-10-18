@@ -197,7 +197,7 @@ export default function AdminOrders({
                     {search || statusFilter !== "All" ? "No orders match your filters." : "No orders yet."}
                 </p>
             ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredOrders.map((order) => {
                         const currentStatus = order.status || "New";
                         const isSelected = selectedOrderIds.includes(order.id);
@@ -205,7 +205,7 @@ export default function AdminOrders({
                         return (
                             <div
                                 key={order.id}
-                                className={`rounded-2xl border p-4 transition-shadow hover:shadow-md ${isSelected ? "border-[#1C3C85] bg-blue-50/40" : "border-gray-200 bg-white"}`}
+                                className={`min-w-0 rounded-2xl border p-4 transition-shadow hover:shadow-md ${isSelected ? "border-[#1C3C85] bg-blue-50/40" : "border-gray-200 bg-white"}`}
                             >
                                 {/* Header */}
                                 <div className="flex items-start justify-between gap-2">
@@ -230,7 +230,7 @@ export default function AdminOrders({
                                 {/* Customer */}
                                 <div className="mt-3">
                                     <p className="font-bold text-gray-900 text-sm truncate">{order.customerName || "—"}</p>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <p className="text-xs text-gray-500 flex flex-wrap items-center gap-1">
                                         <Phone className="w-3 h-3" /> {order.phoneNumber || "—"}
                                         <span className="mx-1">·</span>
                                         <span className="uppercase">{order.governorate || "—"}</span>
@@ -238,7 +238,7 @@ export default function AdminOrders({
                                 </div>
 
                                 {/* Items */}
-                                <p className="mt-2 text-xs text-gray-600 line-clamp-2 leading-snug">{itemsSummary(order) || "—"}</p>
+                                <p className="mt-2 text-xs text-gray-600 line-clamp-2 leading-snug break-words">{itemsSummary(order) || "—"}</p>
 
                                 {/* Total */}
                                 <div className="mt-3 flex items-center justify-between">

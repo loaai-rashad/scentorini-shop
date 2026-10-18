@@ -37,18 +37,50 @@ export default function AdminReviews() {
     if (loading) return <div className="p-8 text-center font-bold text-[#1C3C85]">Loading Reviews...</div>;
 
     return (
-        <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-8">
+        <div className="p-4 sm:p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 mb-6 sm:mb-8">
                 <div className="p-3 bg-[#1C3C85]/10 rounded-xl text-[#1C3C85]">
                     <MessageSquare size={24} />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black uppercase text-[#1C3C85] tracking-tight">Manage Reviews</h2>
+                    <h2 className="text-xl sm:text-2xl font-black uppercase text-[#1C3C85] tracking-tight">Manage Reviews</h2>
                     <p className="text-sm text-gray-500 font-medium">Monitor and moderate customer feedback</p>
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile: stacked cards */}
+            <ul className="md:hidden divide-y divide-gray-100">
+                {reviews.map((rev) => (
+                    <li key={rev.id} className="py-4 flex gap-3">
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-gray-900 text-sm">{rev.name}</span>
+                                <span className="text-[10px] text-gray-400">{rev.createdAt?.toDate().toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} size={12} fill={i < rev.rating ? "#1C3C85" : "none"} color="#1C3C85" />
+                                    ))}
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tighter ${rev.productName ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-100 text-gray-500'}`}>
+                                    {rev.productName || "General Site"}
+                                </span>
+                            </div>
+                            <p className="text-sm text-gray-600 italic break-words">"{rev.comment}"</p>
+                        </div>
+                        <button
+                            onClick={() => handleDelete(rev.id)}
+                            className="self-start p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            aria-label="Delete review"
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </li>
+                ))}
+            </ul>
+
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-gray-100 uppercase text-[10px] tracking-widest text-gray-400 font-black">
@@ -96,13 +128,13 @@ export default function AdminReviews() {
                         ))}
                     </tbody>
                 </table>
-                
-                {reviews.length === 0 && (
-                    <div className="py-20 text-center text-gray-400 font-medium">
-                        No reviews found in the database.
-                    </div>
-                )}
             </div>
+
+            {reviews.length === 0 && (
+                <div className="py-20 text-center text-gray-400 font-medium">
+                    No reviews found in the database.
+                </div>
+            )}
         </div>
     );
 }

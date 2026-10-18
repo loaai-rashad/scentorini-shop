@@ -13,12 +13,12 @@ export default function AdminSamples({
 }) {
     return (
         <div className="p-4 bg-white rounded shadow">
-            <h2 className="text-xl font-semibold mb-3 text-indigo-700">
+            <h2 className="text-xl font-semibold mb-3 text-indigo-700 break-words">
                 Manage Sample Inventory (`samples` collection)
             </h2>
 
             {/* Add Sample */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
                 <input
                     type="text"
                     placeholder="Title (e.g., island blush)"
@@ -26,7 +26,7 @@ export default function AdminSamples({
                     onChange={e =>
                         setNewSample(prev => ({ ...prev, title: e.target.value }))
                     }
-                    className="px-2 py-1 border rounded col-span-2"
+                    className="px-2 py-1 border rounded col-span-2 min-w-0"
                 />
                 <input
                     type="number"
@@ -48,14 +48,52 @@ export default function AdminSamples({
                 />
                 <button
                     onClick={handleAddSample}
-                    className="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+                    className="col-span-2 md:col-span-1 bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700"
                 >
                     Add Sample
                 </button>
             </div>
 
+            {/* Mobile: one card per sample */}
+            <ul className="md:hidden space-y-3">
+                {samples.map(s => (
+                    <li key={s.id} className="border rounded-lg p-3 space-y-2">
+                        <input
+                            type="text"
+                            value={s.title}
+                            onChange={e => handleSampleChange(s.id, "title", e.target.value)}
+                            className="w-full border rounded px-2 py-1.5 font-semibold"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="text-xs text-gray-500">
+                                Price (EGP)
+                                <input
+                                    type="number"
+                                    value={s.price}
+                                    onChange={e => handleSampleChange(s.id, "price", e.target.value)}
+                                    className="w-full border rounded px-2 py-1.5 text-sm text-gray-900"
+                                />
+                            </label>
+                            <label className="text-xs text-gray-500">
+                                Stock
+                                <input
+                                    type="number"
+                                    value={s.stock}
+                                    onChange={e => handleSampleChange(s.id, "stock", e.target.value)}
+                                    className="w-full border rounded px-2 py-1.5 text-sm text-gray-900"
+                                />
+                            </label>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleSaveSample(s.id)} className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm">Save</button>
+                            <button onClick={() => handleDeleteSample(s.id)} className="flex-1 bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 text-sm">Delete</button>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
             {/* Sample Table */}
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full border border-gray-200 bg-white">
                     <thead className="bg-indigo-50">
                         <tr>

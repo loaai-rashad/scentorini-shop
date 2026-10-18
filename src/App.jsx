@@ -22,6 +22,7 @@ import TrustBar from "./components/TrustBar";
 import AboutTeaser from "./components/AboutTeaser";
 import SectionHeading from "./components/SectionHeading";
 import WhatsAppButton from "./components/WhatsAppButton";
+import ReviewsButton from "./components/ReviewsButton";
 import { initMetaPixel, pixelTrack } from "./lib/metaPixel";
 import { setPageMeta } from "./lib/seo";
 // --- REVIEW COMPONENTS ---
@@ -145,7 +146,8 @@ function App() {
                 </section>
 
                 {/* --- 3. REVIEWS SECTION --- */}
-                <section className="py-14 md:py-20">
+                {/* scroll-mt clears the sticky header when the floating button scrolls here */}
+                <section id="customer-stories" className="py-14 md:py-20 scroll-mt-20">
                   <SectionHeading
                     eyebrow="Loved by our customers"
                     title="Customer Stories"
@@ -163,6 +165,9 @@ function App() {
 
                 {/* --- 4. BRAND STORY TEASER --- */}
                 <AboutTeaser />
+
+                {/* Floating button — rendered inside the "/" route so it only shows on the landing page */}
+                <ReviewsButton targetId="customer-stories" />
 
                 <ReviewModal 
                     isOpen={isModalOpen} 
