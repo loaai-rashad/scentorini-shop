@@ -4,6 +4,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/robots.txt", "destination": "/api/robots" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/llms.txt", "destination": "/api/llms" },
+    { "source": "/feed.xml", "destination": "/api/feed" },
     { "source": "/products/:id", "destination": "/api/product-og?id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

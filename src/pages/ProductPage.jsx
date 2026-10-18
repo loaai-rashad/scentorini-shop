@@ -108,7 +108,10 @@ export default function ProductPage() {
 
           // --- SEO: per-product title + description ---
           setPageMeta({
-              title: `${productData.title} | Scentorini`,
+              // Matches the title api/product-og.ts serves to crawlers.
+              title: String(productData.inspiredBy || "").trim()
+                  ? `${String(productData.title || "").trim()} — Inspired by ${String(productData.inspiredBy).trim()} | Scentorini`
+                  : `${String(productData.title || "").trim()} | Scentorini`,
               description:
                   productData.subtitle ||
                   (productData.description ? String(productData.description).slice(0, 160) : "") ||
