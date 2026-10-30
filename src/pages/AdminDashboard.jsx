@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { normalizeCode } from "../lib/promo";
+import { DEFAULT_COD_FEE, normalizeCodFee } from "../lib/codFee";
 import { uploadImage } from "../lib/uploadImage";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +45,7 @@ export default function AdminDashboard() {
   const [announcement, setAnnouncement] = useState({ text: '', enabled: false });
   const [heroSettings, setHeroSettings] = useState({ imageUrl: '', active: true });
   const [heroUploading, setHeroUploading] = useState(false);
+  const [codFeeInput, setCodFeeInput] = useState(String(DEFAULT_COD_FEE));
   const [activeTab, setActiveTab] = useState('orders'); 
   
   const [newSample, setNewSample] = useState({ title: "", price: "", stock: "" });
@@ -133,6 +135,9 @@ const handleDeleteShippingRate = async (id) => {
         const heroRef = doc(db, "siteSettings", "hero");
         const heroSnap = await getDoc(heroRef);
         if (heroSnap.exists()) setHeroSettings(heroSnap.data());
+
+        const paymentsSnap = await getDoc(doc(db, "siteSettings", "payments"));
+        if (paymentsSnap.exists()) setCodFeeInput(String(normalizeCodFee(paymentsSnap.data().codFee)));
     };
     fetchSettings();
   }, []);
@@ -237,6 +242,18 @@ const handleDeleteShippingRate = async (id) => {
     } catch (error) {
         console.error("Error saving hero settings:", error);
         toast.error("Failed to save hero settings.");
+    }
+  };
+
+  const handleSaveCodFee = async () => {
+    const fee = Number(codFeeInput);
+    if (codFeeInput === "" || !Number.isFinite(fee) || fee < 0) return toast.error("Enter a fee of 0 or more.");
+    try {
+        await setDoc(doc(db, "siteSettings", "payments"), { codFee: fee }, { merge: true });
+        toast.success(fee > 0 ? `COD fee set to ${fee} EGP.` : "COD fee removed.");
+    } catch (error) {
+        console.error("Error saving COD fee:", error);
+        toast.error("Failed to save COD fee.");
     }
   };
 
@@ -598,6 +615,27 @@ const handleDeleteShippingRate = async (id) => {
                   </tbody>
               </table>
           </div>
+      </div>
+
+      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Cash on Delivery Fee</h3>
+          <div className="flex flex-wrap gap-4 items-end max-w-2xl">
+              <div className="w-40">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Fee (EGP)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={codFeeInput}
+                    onChange={(e) => setCodFeeInput(e.target.value)}
+                    className="w-full p-3 border rounded-lg font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+              </div>
+              <button onClick={handleSaveCodFee} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg">
+                  Save COD Fee
+              </button>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2">Added to the total when a customer picks Cash on Delivery. Set 0 to turn it off.</p>
       </div>
 
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">

@@ -19,7 +19,7 @@ export default function Confirmation() {
     );
   }
 
-  const { form, subtotal, shipping, discount, total, promoCode, promoDiscount, loyaltyDiscountAmount } = state;
+  const { form, subtotal, shipping, codFee, discount, total, promoCode, promoDiscount, loyaltyDiscountAmount } = state;
   // Older orders only carried the combined `discount`.
   const promoAmount = promoDiscount ?? (promoCode ? discount : 0);
 
@@ -38,6 +38,9 @@ export default function Confirmation() {
           <p className="mb-1 text-orange-600">Loyalty reward: -EGP {loyaltyDiscountAmount.toFixed(2)}</p>
         )}
         <p className="mb-1">Shipping: EGP {shipping.toFixed(2)}</p>
+        {codFee > 0 && (
+          <p className="mb-1 text-sm font-light text-gray-500">Cash on delivery fee: EGP {codFee.toFixed(2)}</p>
+        )}
         <p className="font-bold text-lg mt-2">Total Paid: EGP {total.toFixed(2)}</p>
       </div>
 

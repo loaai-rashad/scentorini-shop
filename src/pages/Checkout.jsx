@@ -29,6 +29,7 @@ import {
   customerUses,
   describeDiscount,
 } from "../lib/promo";
+import { DEFAULT_COD_FEE, normalizeCodFee, codFeeFor } from "../lib/codFee";
 
 const EMAILJS_SERVICE_ID = 'service_gl98ck9';
 const EMAILJS_TEMPLATE_ID = 'template_y2k0ghw';
@@ -66,6 +67,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("InstaPay");
   const [instapayPhone, setInstapayPhone] = useState("");
   const [formError, setFormError] = useState("");
+  const [codFeeSetting, setCodFeeSetting] = useState(DEFAULT_COD_FEE);
 
   // --- LOYALTY STATE ---
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
@@ -87,6 +89,11 @@ export default function Checkout() {
       }
     };
     fetchRates();
+
+    // COD fee is set by the admin; keep the default if it can't be read.
+    getDoc(doc(db, "siteSettings", "payments"))
+      .then(snap => { if (snap.exists()) setCodFeeSetting(normalizeCodFee(snap.data().codFee)); })
+      .catch(error => console.error("Error fetching COD fee:", error));
   }, []);
 
   // --- 2. LOYALTY LOGIC: Check previous orders by email ---
@@ -201,7 +208,8 @@ export default function Checkout() {
   const subtotalAfterPromo = subtotal - promoDiscountAmount;
   const loyaltyDiscountAmount = loyaltyBlockedByPromo ? 0 : (loyaltyDiscount / 100) * subtotalAfterPromo;
 
-  const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost;
+  const codFee = codFeeFor(paymentMethod, codFeeSetting);
+  const total = subtotalAfterPromo - loyaltyDiscountAmount + currentShippingCost + codFee;
   
   useEffect(() => {
     // Fire once, the first time checkout is opened with items in the cart.
@@ -345,6 +353,7 @@ export default function Checkout() {
         items: orderItems,
         subtotal,
         shipping: currentShippingCost,
+        codFee,
         discount: promoDiscountAmount + loyaltyDiscountAmount, // Combined discount for records
         promoDiscount: promoDiscountAmount,
         loyaltyDiscountAmount,
@@ -387,6 +396,7 @@ export default function Checkout() {
         total: total.toFixed(2),
         subtotal: subtotal.toFixed(2),
         shipping_cost: currentShippingCost.toFixed(2),
+        cod_fee: codFee.toFixed(2),
         payment_method: paymentMethod,
         governorate: form.governorate,
         address: form.address,
@@ -521,6 +531,9 @@ export default function Checkout() {
               <div className="flex-1">
                 <span className="font-bold text-blue-700 block text-sm">Cash on Delivery (COD)</span>
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pay at doorstep</p>
+                {codFeeSetting > 0 && (
+                  <p className="text-[11px] text-gray-400 font-light mt-1">+{codFeeSetting.toLocaleString()} EGP cash on delivery fee, added to your total</p>
+                )}
               </div>
             </label>
           </div>
@@ -570,6 +583,7 @@ export default function Checkout() {
                   <span className="text-gray-400 normal-case font-medium">Select destination</span>
                 )}
               </div>
+              {codFee > 0 && <div className="flex justify-between text-xs font-light text-gray-400"><span>Cash on delivery fee</span><span>{codFee.toLocaleString()} EGP</span></div>}
               {promoApplied && <div className="flex justify-between text-xs font-bold text-green-600 uppercase"><span>Promo ({appliedPromo.code})</span><span>-{promoDiscountAmount.toLocaleString()} EGP</span></div>}
               {loyaltyDiscountAmount > 0 && <div className="flex justify-between text-xs font-bold text-orange-600 uppercase"><span>Loyalty Discount</span><span>-{loyaltyDiscountAmount.toLocaleString()} EGP</span></div>}
               <div className="flex justify-between text-xl font-black text-[#1C3C85] border-t pt-2 mt-2 italic tracking-tighter"><span>TOTAL</span><span>{total.toLocaleString()} EGP</span></div>

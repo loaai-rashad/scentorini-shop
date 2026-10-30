@@ -319,6 +319,7 @@ export default function AdminOrders({
                                 <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Payment</p>
                                 <p className="text-sm text-gray-700 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> {detailOrder.paymentMethod || "COD"}</p>
                                 {detailOrder.instapayPhone && <p className="text-sm text-gray-600 font-mono">InstaPay payer: {detailOrder.instapayPhone}</p>}
+                                {detailOrder.codFee > 0 && <p className="text-sm text-gray-500">COD fee: EGP {detailOrder.codFee.toLocaleString()} (included in total)</p>}
                             </div>
 
                             {/* Items */}
