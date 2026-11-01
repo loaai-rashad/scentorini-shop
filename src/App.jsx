@@ -23,6 +23,8 @@ import AboutTeaser from "./components/AboutTeaser";
 import SectionHeading from "./components/SectionHeading";
 import WhatsAppButton from "./components/WhatsAppButton";
 import ReviewsButton from "./components/ReviewsButton";
+import GiveawayBanner from "./components/giveaway/GiveawayBanner";
+import GiveawayPage from "./pages/GiveawayPage";
 import { initMetaPixel, pixelTrack } from "./lib/metaPixel";
 import { setPageMeta } from "./lib/seo";
 // --- REVIEW COMPONENTS ---
@@ -106,6 +108,9 @@ function App() {
               <>
                 <Carousel />
 
+                {/* --- GIVEAWAY TEASER (renders nothing unless switched on in admin) --- */}
+                <GiveawayBanner />
+
                 {/* --- TRUST / VALUE BAR --- */}
                 <TrustBar />
 
@@ -185,6 +190,7 @@ function App() {
           <Route path="/testers/builder" element={<DiscoverySetPage />} />
           <Route path="/products/:id" element={<ProductPage />} />
           <Route path="/about" element={<About />} />
+          <Route path="/lucky-wheel" element={<GiveawayPage />} />
           <Route path="/account" element={<Account />} /> {/* NEW ACCOUNT ROUTE */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

@@ -29,6 +29,7 @@ import AdminInsights from '../components/admin/AdminInsights';
 import AdminCustomizableSections from '../components/admin/AdminCustomizableSections';
 import AdminReviews from '../components/admin/AdminReviews';
 import AdminCategories from '../components/admin/AdminCategories';
+import AdminGiveaway from '../components/admin/AdminGiveaway';
 
 import AdminInventory from '../components/admin/AdminInventory';
 import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
@@ -507,6 +508,8 @@ const handleDeleteShippingRate = async (id) => {
         return <AdminReviews />;
       case 'inventory': 
         return <AdminInventory />;
+      case 'giveaway':
+        return <AdminGiveaway />;
       case 'loyalty': 
         return <LoyalCustomers orders={orders} />;
       case 'settings':
@@ -780,9 +783,9 @@ const handleDeleteShippingRate = async (id) => {
         </div>
       )}
 
-      {/* Phones/tablets/small laptops: wrapped pills so every tab is visible. Wide screens: underline tabs. */}
-      <div className="xl:border-b xl:border-gray-200">
-        <nav className="flex flex-wrap gap-2 xl:gap-0 xl:flex-nowrap xl:-mb-px xl:space-x-5 xl:overflow-x-auto">
+      {/* Wrapped pills at every size so all tabs stay visible as more are added. */}
+      <div>
+        <nav className="flex flex-wrap gap-2">
           {[
             { id: 'orders', name: 'Orders' },
             { id: 'products', name: 'Products' },
@@ -793,12 +796,13 @@ const handleDeleteShippingRate = async (id) => {
             { id: 'reviews', name: 'Reviews' },
             { id: 'inventory', name: 'Drop Expenses' },
             { id: 'loyalty', name: 'Loyalty' }, 
+            { id: 'giveaway', name: 'Giveaway' },
             { id: 'settings', name: 'Site Settings' },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap font-bold uppercase tracking-tight transition-colors px-3 py-1.5 rounded-full text-[11px] border xl:rounded-none xl:border-0 xl:border-b-2 xl:py-3 xl:px-1 xl:text-sm ${activeTab === tab.id ? 'bg-[#1C3C85] text-white border-[#1C3C85] xl:bg-transparent xl:text-[#1C3C85]' : 'bg-white text-gray-500 border-gray-200 xl:border-transparent xl:bg-transparent hover:border-gray-300 hover:text-gray-700'}`}
+              className={`whitespace-nowrap font-bold uppercase tracking-tight transition-colors px-3 py-1.5 rounded-full text-[11px] border ${activeTab === tab.id ? 'bg-[#1C3C85] text-white border-[#1C3C85]' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'}`}
             >
               {tab.name}
             </button>
