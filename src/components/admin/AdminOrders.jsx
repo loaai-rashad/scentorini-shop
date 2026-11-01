@@ -130,7 +130,9 @@ export default function AdminOrders({
             xmlContent += '<Row>';
             r.forEach((val, idx) => {
                 const type = (idx === 9) ? "Number" : "String";
-                xmlContent += `<Cell><Data ss:Type="${type}">${val}</Data></Cell>`;
+                // Escape XML specials — a promo like "Family&friends" or an address with "<" broke the file.
+                const safe = String(val ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                xmlContent += `<Cell><Data ss:Type="${type}">${safe}</Data></Cell>`;
             });
             xmlContent += '</Row>';
         });
