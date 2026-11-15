@@ -30,6 +30,7 @@ import AdminCustomizableSections from '../components/admin/AdminCustomizableSect
 import AdminReviews from '../components/admin/AdminReviews';
 import AdminCategories from '../components/admin/AdminCategories';
 import AdminGiveaway from '../components/admin/AdminGiveaway';
+import AdminBundles from '../components/admin/AdminBundles';
 
 import AdminInventory from '../components/admin/AdminInventory';
 import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
@@ -495,7 +496,12 @@ const handleDeleteShippingRate = async (id) => {
       case 'orders':
         return <AdminOrders orders={orders} promoCodes={promoCodes} statuses={statuses} statusColors={statusColors} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} handleStatusChange={handleStatusChange} handlePromoChange={handlePromoChange} handleDeleteOrder={handleDeleteOrder} />;
       case 'products':
-        return <AdminProducts products={products} newProduct={newProduct} setNewProduct={setNewProduct} handleProductChange={handleProductChange} handleSaveProduct={handleSaveProduct} handleAddProduct={handleAddProduct} handleDeleteProduct={handleDeleteProduct} />;
+        return (
+          <>
+            <AdminBundles />
+            <AdminProducts products={products} newProduct={newProduct} setNewProduct={setNewProduct} handleProductChange={handleProductChange} handleSaveProduct={handleSaveProduct} handleAddProduct={handleAddProduct} handleDeleteProduct={handleDeleteProduct} />
+          </>
+        );
       case 'samples':
         return <AdminSamples samples={samples} newSample={newSample} setNewSample={setNewSample} handleSampleChange={handleSampleChange} handleSaveSample={handleSaveSample} handleAddSample={handleAddSample} handleDeleteSample={handleDeleteSample} />;
       case 'promos':

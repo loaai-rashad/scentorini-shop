@@ -142,6 +142,10 @@ export default function Checkout() {
     setPromoError("");
     const input = promoInput.trim();
     if (!input) return;
+    if (cart.some((item) => item.isBundle)) {
+      setPromoError("Promo codes can't be combined with bundles.");
+      return;
+    }
 
     setApplyingPromo(true);
     try {
@@ -179,6 +183,8 @@ export default function Checkout() {
 
   // --- TOTALS CALCULATION ---
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Bundles are already discounted, so promo codes are off while one is in the bag.
+  const hasBundle = cart.some((item) => item.isBundle);
 
   // Re-checked on every render, so cart edits / email changes are always reflected.
   const promoCheck = appliedPromo
@@ -190,7 +196,7 @@ export default function Checkout() {
         customerKnown: customerOrderCount !== null,
       })
     : null;
-  let promoDiscountAmount = promoCheck?.ok ? computePromoDiscount(appliedPromo, subtotal) : 0;
+  let promoDiscountAmount = promoCheck?.ok && !hasBundle ? computePromoDiscount(appliedPromo, subtotal) : 0;
 
   // Promo first, then loyalty on what's left. A promo that doesn't stack with the
   // loyalty reward is dropped when the reward is worth more (customer gets the better one).
@@ -294,39 +300,52 @@ export default function Checkout() {
         }
       }
 
-      for (const item of cart) {
-        if (item.isCustomSet) {
-          for (const sample of item.selectedSamples) {
-            const sampleRef = doc(db, "samples", sample.docId);
-            const sampleSnap = await getDoc(sampleRef);
-            if (!sampleSnap.exists() || sampleSnap.data().stock < 1) {
-              setFormError(`Sorry, "${sample.title}" just went out of stock. Please adjust your set.`);
-              validationFailed = true;
-              break;
-            }
-          }
-        } else {
-          const productRef = doc(db, "products", item.id);
-          const productSnap = await getDoc(productRef);
-          if (!productSnap.exists() || productSnap.data().stock < item.quantity) {
-            setFormError(`Sorry, "${item.title}" doesn't have enough stock. Please adjust the quantity.`);
-            validationFailed = true;
-            break;
-          }
+      // A bundle that was unpublished after it went in the bag can't be bought any more.
+      for (const item of cart.filter((i) => i.isBundle)) {
+        const bundleSnap = await getDoc(doc(db, "bundles", item.bundleId));
+        if (!bundleSnap.exists() || !bundleSnap.data().published) {
+          setFormError(`Sorry, the "${item.title}" offer has ended. Please remove it from your bag.`);
+          setLoading(false);
+          return;
         }
-        if (validationFailed) break;
+      }
+
+      // Total stock the whole bag needs per item — a bundle can hold the same perfume
+      // twice, and a perfume can also be in the bag on its own.
+      const needs = new Map(); // "products/ID" | "samples/ID" -> { qty, title }
+      const need = (path, qty, title) => {
+        const cur = needs.get(path);
+        needs.set(path, { qty: (cur?.qty || 0) + qty, title: cur?.title || title });
+      };
+      for (const item of cart) {
+        if (item.isBundle) {
+          for (const c of item.components || []) need(`${c.kind === "sample" ? "samples" : "products"}/${c.id}`, item.quantity || 1, c.title);
+        } else if (item.isCustomSet) {
+          for (const sample of item.selectedSamples) need(`samples/${sample.docId}`, 1, sample.title);
+        } else {
+          need(`products/${item.id}`, item.quantity, item.title);
+        }
+      }
+
+      for (const [path, { qty, title }] of needs) {
+        const [col, id] = path.split("/");
+        const snap = await getDoc(doc(db, col, id));
+        if (!snap.exists() || Number(snap.data().stock) < qty) {
+          setFormError(
+            col === "samples"
+              ? `Sorry, the "${title}" tester just went out of stock. Please adjust your bag.`
+              : `Sorry, "${title}" doesn't have enough stock. Please adjust your bag.`
+          );
+          validationFailed = true;
+          break;
+        }
       }
 
       if (validationFailed) { setLoading(false); return; }
-      
-      for (const item of cart) {
-        if (item.isCustomSet) {
-          for (const sample of item.selectedSamples) {
-            batch.update(doc(db, "samples", sample.docId), { stock: increment(-1) }); 
-          }
-        } else {
-          batch.update(doc(db, "products", item.id), { stock: increment(-item.quantity) }); 
-        }
+
+      for (const [path, { qty }] of needs) {
+        const [col, id] = path.split("/");
+        batch.update(doc(db, col, id), { stock: increment(-qty) });
       }
       await batch.commit();
 
@@ -341,6 +360,12 @@ export default function Checkout() {
             isCustomSet: true, 
             selectedSamples: item.selectedSamples.map(s => s.title),
             priceDetails: item.priceDetails 
+        }),
+        ...(item.isBundle && {
+            isBundle: true,
+            bundleId: item.bundleId,
+            originalPrice: item.originalPrice,
+            components: (item.components || []).map((c) => ({ kind: c.kind, id: c.id, title: c.title, price: c.price, free: !!c.free, slot: c.slot || "" })),
         })
       }));
 
@@ -402,6 +427,7 @@ export default function Checkout() {
         address: form.address,
         order_details: orderItems.map(item => {
             const sizeInfo = item.size ? ` (${item.size})` : "";
+            if (item.isBundle) return `${item.title}: ${(item.components || []).map((c) => `${c.title}${c.free ? " (free)" : ""}`).join(', ')}`;
             return item.isCustomSet
                 ? `${item.title}: ${(item.selectedSamples || []).join(', ')}`
                 : `${item.title}${sizeInfo} x ${item.quantity}`;
@@ -472,9 +498,11 @@ export default function Checkout() {
                 <p className={`text-[11px] font-medium ${promoApplied ? "text-green-700" : "text-amber-700"}`}>
                   {promoApplied
                     ? `You save EGP ${promoDiscountAmount.toLocaleString()}${loyaltyBlockedByPromo ? " (can't be combined with your loyalty reward)" : ""}`
-                    : promoLostToLoyalty
-                      ? "Your loyalty reward is bigger, so we applied that instead."
-                      : promoCheck?.reason}
+                    : hasBundle
+                      ? "Promo codes can't be combined with bundles."
+                      : promoLostToLoyalty
+                        ? "Your loyalty reward is bigger, so we applied that instead."
+                        : promoCheck?.reason}
                 </p>
               </div>
               <button type="button" onClick={removePromo} className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-red-600 shrink-0">Remove</button>
@@ -556,7 +584,11 @@ export default function Checkout() {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold uppercase text-stone-800 truncate">{item.title}</p>
-                    {item.isCustomSet ? (
+                    {item.isBundle ? (
+                      <p className="text-[10px] text-gray-400 line-clamp-3 leading-snug">
+                        {(item.components || []).map((c) => `${c.title}${c.free ? " (free)" : ""}`).join(" • ")}
+                      </p>
+                    ) : item.isCustomSet ? (
                       <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">
                         {(item.selectedSamples || []).map((s) => (typeof s === "string" ? s : s.title)).join(" • ")}
                       </p>

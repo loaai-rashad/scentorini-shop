@@ -10,6 +10,7 @@ import { db } from '../firebase';
 import LoadingScreen from "../components/LoadingScreen";
 import ProductGroup from "../components/ProductGroup";
 import { setPageMeta } from "../lib/seo";
+import BundlesShowcase from "../components/bundles/BundlesShowcase";
 
 export default function CategoryPage() {
     const { slug } = useParams();
@@ -101,6 +102,9 @@ export default function CategoryPage() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto min-h-screen">
+            {/* Bundles first, above every product (renders nothing until one is published) */}
+            <BundlesShowcase className="mb-12" />
+
             <h1 className="text-4xl font-archivo font-black uppercase tracking-tighter text-[#1C3C85] mb-8 text-center">
                 {pageTitle}
             </h1>

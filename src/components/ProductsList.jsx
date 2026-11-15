@@ -9,6 +9,7 @@ import LoadingScreen from "./LoadingScreen";
 import ProductGroup from "./ProductGroup";
 import { setPageMeta } from "../lib/seo";
 import { getDiscountedPrice } from "../lib/pricing";
+import BundlesShowcase from "./bundles/BundlesShowcase";
 
 export default function ProductsList() {
     const [products, setProducts] = useState([]);
@@ -133,6 +134,9 @@ export default function ProductsList() {
             <h1 className="text-4xl font-archivo font-black uppercase tracking-tighter text-[#1C3C85] mb-8 text-center">
                 {pageTitle}
             </h1>
+
+            {/* Bundles first, above every product (renders nothing until one is published) */}
+            <BundlesShowcase className="mb-12" />
 
             {/* Search + Sort toolbar */}
             <div className="flex flex-col sm:flex-row gap-3 mb-10 max-w-2xl mx-auto">

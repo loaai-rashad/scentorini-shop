@@ -71,7 +71,14 @@ export default function AdminInsights() {
                     monthAgg[monthKey].netRevenue += netRevenue;
                     monthAgg[monthKey].orderCount += 1;
 
-                    const items = order.items || [];
+                    // Bundles count as the perfumes/oils inside them, so product performance stays accurate.
+                    const items = (order.items || []).flatMap((it) =>
+                        it.isBundle
+                            ? (it.components || [])
+                                  .filter((c) => c.kind === "product")
+                                  .map((c) => ({ id: c.id, title: c.title, quantity: Number(it.quantity) || 1 }))
+                            : [it]
+                    );
                     if (Array.isArray(items)) {
                         // --- 1. FREQUENTLY BOUGHT TOGETHER LOGIC ---
                         if (items.length > 1) {

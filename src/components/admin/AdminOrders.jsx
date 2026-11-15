@@ -65,7 +65,11 @@ export default function AdminOrders({
 
     const itemsSummary = (order) =>
         (order.items || [])
-            .map((it) => `${it.title}${it.size ? ` (${it.size})` : ""}${!it.isCustomSet ? ` ×${it.quantity || 1}` : ""}`)
+            .map((it) =>
+                it.isBundle
+                    ? `${it.title} [${(it.components || []).map((c) => c.title).join(" + ")}]`
+                    : `${it.title}${it.size ? ` (${it.size})` : ""}${!it.isCustomSet ? ` ×${it.quantity || 1}` : ""}`
+            )
             .join(", ");
 
     // --- Search + status filter ---
@@ -111,7 +115,8 @@ export default function AdminOrders({
         const rows = targetOrders.map((o) => {
             const itemsString = (o.items || []).map((item) => {
                 let summary = `${item.title}${item.size ? ` (${item.size})` : ''}`;
-                if (item.isCustomSet && item.selectedSamples) summary += ` [Samples: ${item.selectedSamples.join(', ')}]`;
+                if (item.isBundle) summary += ` [Bundle: ${(item.components || []).map((c) => `${c.title}${c.free ? " (free)" : ""}`).join(', ')}]`;
+                else if (item.isCustomSet && item.selectedSamples) summary += ` [Samples: ${item.selectedSamples.join(', ')}]`;
                 else summary += ` x${item.quantity || 1}`;
                 return summary;
             }).join(" | ");
@@ -337,6 +342,16 @@ export default function AdminOrders({
                                                 </p>
                                                 {item.isCustomSet && item.selectedSamples && (
                                                     <p className="text-[11px] text-blue-500 italic">Samples: {item.selectedSamples.join(', ')}</p>
+                                                )}
+                                                {item.isBundle && (
+                                                    <ul className="mt-1 text-[11px] text-gray-600 space-y-0.5">
+                                                        {(item.components || []).map((c, i) => (
+                                                            <li key={i}>
+                                                                <span className="text-gray-400">{c.slot || (c.kind === "sample" ? "Tester" : "Item")}:</span> {c.title}
+                                                                {c.free && <span className="ml-1 text-[9px] font-black uppercase text-amber-600">free</span>}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
                                                 )}
                                             </div>
                                             <span className="text-gray-500 whitespace-nowrap">×{item.quantity || 1}</span>

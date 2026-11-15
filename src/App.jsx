@@ -25,6 +25,8 @@ import WhatsAppButton from "./components/WhatsAppButton";
 import ReviewsButton from "./components/ReviewsButton";
 import GiveawayBanner from "./components/giveaway/GiveawayBanner";
 import GiveawayPage from "./pages/GiveawayPage";
+import BundlesShowcase from "./components/bundles/BundlesShowcase";
+import BundlePage from "./pages/BundlePage";
 import { initMetaPixel, pixelTrack } from "./lib/metaPixel";
 import { setPageMeta } from "./lib/seo";
 // --- REVIEW COMPONENTS ---
@@ -107,6 +109,9 @@ function App() {
             element={
               <>
                 <Carousel />
+
+                {/* --- BUNDLES (renders nothing until one is published in admin) --- */}
+                <BundlesShowcase className="px-4 md:px-8 pt-10 md:pt-14" />
 
                 {/* --- GIVEAWAY TEASER (renders nothing unless switched on in admin) --- */}
                 <GiveawayBanner />
@@ -191,6 +196,7 @@ function App() {
           <Route path="/products/:id" element={<ProductPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/lucky-wheel" element={<GiveawayPage />} />
+          <Route path="/bundles/:id" element={<BundlePage />} />
           <Route path="/account" element={<Account />} /> {/* NEW ACCOUNT ROUTE */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

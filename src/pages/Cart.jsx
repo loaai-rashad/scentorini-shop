@@ -66,7 +66,7 @@ export default function Cart({ isOpen, onClose }) {
                   <div className="flex-1 flex flex-col justify-between py-1">
                     <div>
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className={`font-black uppercase text-sm leading-tight tracking-tight ${item.isCustomSet ? 'text-purple-700' : 'text-gray-900'}`}>
+                        <h3 className={`font-black uppercase text-sm leading-tight tracking-tight ${item.isCustomSet ? 'text-purple-700' : item.isBundle ? 'text-[#1C3C85]' : 'text-gray-900'}`}>
                           {item.title}
                         </h3>
                         <button
@@ -78,10 +78,22 @@ export default function Cart({ isOpen, onClose }) {
                       </div>
 
                       {/* Size variant label */}
-                      {!item.isCustomSet && item.size && item.size !== "Standard" && (
+                      {!item.isCustomSet && !item.isBundle && item.size && item.size !== "Standard" && (
                         <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-widest">
                           {item.size}
                         </p>
+                      )}
+
+                      {/* Bundle: list what's inside */}
+                      {item.isBundle && Array.isArray(item.components) && (
+                        <ul className="text-[10px] text-gray-500 font-bold uppercase mt-1 leading-relaxed">
+                          {item.components.map((c, i) => (
+                            <li key={i}>
+                              {c.title}
+                              {c.free && <span className="ml-1 text-[#B8892F]">· free</span>}
+                            </li>
+                          ))}
+                        </ul>
                       )}
 
                       {/* Discovery Set: list the chosen samples */}
@@ -94,7 +106,9 @@ export default function Cart({ isOpen, onClose }) {
 
                     <div className="flex items-center justify-between mt-4">
                       {/* Quantity Controls */}
-                      {!item.isCustomSet ? (
+                      {item.isBundle ? (
+                        <span className="text-[10px] font-black text-[#1C3C85] bg-blue-50 px-2 py-1 rounded uppercase">Bundle</span>
+                      ) : !item.isCustomSet ? (
                         <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
                           <button
                             className="p-1 px-3 text-gray-500 hover:text-[#1C3C85] transition-colors"
