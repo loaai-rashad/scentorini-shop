@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { motion } from "framer-motion";
+import Hero3D from "./hero3d/Hero3D";
 
 export default function HeroBanner() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // "3d" shows the interactive bottle; anything else keeps the photo banner.
+  // ?hero=3d / ?hero=photo previews either style without changing the setting.
+  const [mode, setMode] = useState(null); // null until the setting has loaded
 
   // State for the dynamic hero data
   // Default is your local image in case Firebase is loading
@@ -15,6 +20,7 @@ export default function HeroBanner() {
   // Listen to Firebase "siteSettings/hero" document in real-time
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "siteSettings", "hero"), (docSnap) => {
+      setMode(docSnap.exists() && docSnap.data().mode === "3d" ? "3d" : "photo");
       if (docSnap.exists()) {
         const data = docSnap.data();
         // Only swap the image if a real URL was saved, otherwise keep the default
@@ -22,13 +28,19 @@ export default function HeroBanner() {
           setHeroData(data);
         }
       }
-    });
+    }, () => setMode("photo"));
     return () => unsub();
   }, []);
 
   const handleFilterNavigation = (gender) => {
     navigate(`/products?gender=${gender}`);
   };
+
+  const preview = params.get("hero");
+  const effectiveMode = preview === "3d" || preview === "photo" ? preview : mode;
+  if (effectiveMode === "3d") return <Hero3D />;
+  // Setting not loaded yet: hold the space instead of flashing the wrong style.
+  if (effectiveMode === null) return <section className="w-full h-[78vh] min-h-[520px] max-h-[820px] bg-[#e8e8ea]" aria-hidden="true" />;
 
   return (
     <section className="relative w-full h-[78vh] min-h-[520px] max-h-[820px] overflow-hidden bg-[#1C3C85]">

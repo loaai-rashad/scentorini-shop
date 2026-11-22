@@ -651,6 +651,42 @@ const handleDeleteShippingRate = async (id) => {
           <h3 className="text-lg font-black uppercase text-[#1C3C85] mb-4">Hero Banner Settings</h3>
           <div className="flex flex-col gap-6 max-w-2xl">
             <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Hero style</label>
+                <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Hero style">
+                    {[
+                      { value: "photo", title: "Photo banner", hint: "Full-screen image (upload below) — good for campaigns like Eid or Ramadan." },
+                      { value: "3d", title: "3D bottle", hint: "Interactive 3D bottle that cycles Island Blush, Blue Flame and White Veil." },
+                    ].map((opt) => {
+                      const selected = (heroSettings.mode === "3d" ? "3d" : "photo") === opt.value;
+                      return (
+                        <div
+                          key={opt.value}
+                          role="radio"
+                          aria-checked={selected}
+                          tabIndex={0}
+                          onClick={() => setHeroSettings({ ...heroSettings, mode: opt.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setHeroSettings({ ...heroSettings, mode: opt.value }); } }}
+                          className={`text-left p-4 rounded-xl border-2 transition cursor-pointer ${selected ? "border-[#1C3C85] bg-[#1C3C85]/5" : "border-gray-200 hover:border-gray-300"}`}
+                        >
+                          <span className="block text-sm font-black text-gray-900">{opt.title}</span>
+                          <span className="block text-xs text-gray-500 mt-1">{opt.hint}</span>
+                          <a
+                            href={`/?hero=${opt.value}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-block mt-2 text-[11px] font-bold text-[#1C3C85] underline"
+                          >
+                            Preview
+                          </a>
+                        </div>
+                      );
+                    })}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2">Press "Update Hero" below to apply. Preview opens the homepage in that style without changing anything.</p>
+            </div>
+
+            <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Upload Banner Image</label>
                 <label className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest shadow-lg cursor-pointer transition-colors ${heroUploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#1C3C85] text-white hover:bg-blue-800'}`}>
                     {heroUploading ? 'Uploading...' : 'Choose Image'}
@@ -686,7 +722,7 @@ const handleDeleteShippingRate = async (id) => {
             )}
 
             <button onClick={handleSaveHero} className="bg-[#1C3C85] text-white px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-lg self-start">
-                Update Hero Image
+                Update Hero
             </button>
           </div>
       </div>
