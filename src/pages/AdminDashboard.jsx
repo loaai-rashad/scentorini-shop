@@ -33,6 +33,7 @@ import AdminGiveaway from '../components/admin/AdminGiveaway';
 import AdminBundles from '../components/admin/AdminBundles';
 
 import AdminInventory from '../components/admin/AdminInventory';
+import AdminOutreach from '../components/admin/AdminOutreach';
 import LoyalCustomers from '../components/admin/LoyalCustomers'; // Imported as you requested
 import { toast, confirmDialog, Toaster, ConfirmHost } from '../components/admin/ui/notify';
 import { AlertTriangle } from 'lucide-react';
@@ -518,6 +519,8 @@ const handleDeleteShippingRate = async (id) => {
         return <AdminGiveaway />;
       case 'loyalty': 
         return <LoyalCustomers orders={orders} />;
+      case 'whatsapp':
+        return <AdminOutreach orders={orders} />;
       case 'settings':
   return (
     <div className="space-y-8 font-archivo">
@@ -838,6 +841,7 @@ const handleDeleteShippingRate = async (id) => {
             { id: 'reviews', name: 'Reviews' },
             { id: 'inventory', name: 'Drop Expenses' },
             { id: 'loyalty', name: 'Loyalty' }, 
+            { id: 'whatsapp', name: 'WhatsApp' },
             { id: 'giveaway', name: 'Giveaway' },
             { id: 'settings', name: 'Site Settings' },
           ].map(tab => (
