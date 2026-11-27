@@ -274,7 +274,7 @@ function BundleEditor({ bundle, data }) {
                 </li>
               ))}
             </ul>
-            <p className="text-[10px] text-gray-400 mt-1.5">Perfume boxes list your "Perfumes" categories, Oil boxes the "Oils" category, Musk boxes the "Musk" category (main size), and Tester boxes the Discovery Set samples.</p>
+            <p className="text-[10px] text-gray-400 mt-1.5">Perfume boxes list your "Perfumes" categories, Oil boxes the "Oils" category, Musk boxes the "Musk" category (main size), "Oil or Musk" boxes let the customer pick from both, and Tester boxes the Discovery Set samples.</p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-3 items-end">

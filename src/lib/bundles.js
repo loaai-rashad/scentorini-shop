@@ -33,6 +33,7 @@ export const SLOT_TYPES = [
   { value: "perfume", label: "Perfume" },
   { value: "oil", label: "Oil" },
   { value: "musk", label: "Musk" },
+  { value: "oilmusk", label: "Oil or Musk" }, // customer picks either; two boxes = 2 oils, 2 musks or one of each
   { value: "tester", label: "Tester" },
 ];
 
@@ -85,6 +86,14 @@ export const productImage = (p) => (Array.isArray(p?.images) && p.images[0]) || 
  * have none. Each option: { key, id, kind, title, subtitle, price, stock, image }.
  */
 export function poolFor(type, { products = [], categories = [], samples = [] }) {
+  if (type === "oilmusk") {
+    const tag = (o, kind) => ({ ...o, subtitle: [kind, o.subtitle].filter(Boolean).join(" · ") });
+    const seen = new Set();
+    return [
+      ...poolFor("oil", { products, categories, samples }).map((o) => tag(o, "Oil")),
+      ...poolFor("musk", { products, categories, samples }).map((o) => tag(o, "Musk")),
+    ].filter((o) => !seen.has(o.key) && seen.add(o.key));
+  }
   if (type === "tester") {
     return samples
       .map((s) => {
