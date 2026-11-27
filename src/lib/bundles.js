@@ -16,6 +16,7 @@
 // Which products can fill a slot comes from the existing menu categories:
 //   perfume → products in categories whose slug contains "perfume"
 //   oil     → products in categories whose slug contains "oil"
+//   musk    → products in categories whose slug contains "musk" (base size/price)
 //   tester  → the Discovery Set samples (samples collection)
 // Bundles are priced from regular prices (product sale prices don't stack on top),
 // and promo codes can't be used on a cart that contains a bundle.
@@ -31,6 +32,7 @@ export const DEFAULT_HEADING = "Black Friday Bundles";
 export const SLOT_TYPES = [
   { value: "perfume", label: "Perfume" },
   { value: "oil", label: "Oil" },
+  { value: "musk", label: "Musk" },
   { value: "tester", label: "Tester" },
 ];
 
@@ -101,7 +103,7 @@ export function poolFor(type, { products = [], categories = [], samples = [] }) 
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
-  const needle = type === "oil" ? "oil" : "perfume";
+  const needle = type === "oil" || type === "musk" ? type : "perfume";
   const cats = categories.filter((c) => String(c.slug || "").includes(needle) && c.visible !== false);
   let ids = new Set(cats.flatMap((c) => c.productIds || []));
   // Fallback if the categories aren't set up: use the free-text "for" field.
@@ -110,7 +112,8 @@ export function poolFor(type, { products = [], categories = [], samples = [] }) 
       products
         .filter((p) => {
           const f = norm(p.for);
-          return type === "oil" ? f.includes("oil") : /\b(her|him|unisex)\b/.test(f) && !f.includes("oil");
+          if (type === "oil" || type === "musk") return f.includes(type);
+          return /\b(her|him|unisex)\b/.test(f) && !f.includes("oil");
         })
         .map((p) => p.id)
     );
