@@ -16,7 +16,7 @@
 // Which products can fill a slot comes from the existing menu categories:
 //   perfume → products in categories whose slug contains "perfume"
 //   oil     → products in categories whose slug contains "oil"
-//   musk    → products in categories whose slug contains "musk" (base size/price)
+//   musk    → products in categories whose slug contains "musk" (smallest size, e.g. 3 gm)
 //   tester  → the Discovery Set samples (samples collection)
 // Bundles are priced from regular prices (product sale prices don't stack on top),
 // and promo codes can't be used on a cart that contains a bundle.
@@ -130,16 +130,23 @@ export function poolFor(type, { products = [], categories = [], samples = [] }) 
   return products
     // The Discovery Set sits in the perfume menu categories, but it's a set of samples, not a perfume.
     .filter((p) => ids.has(p.id) && norm(p.for) !== "tester" && !norm(p.title).includes("discovery set"))
-    .map((p) => ({
-      key: `products/${p.id}`,
-      id: p.id,
-      kind: "product",
-      title: String(p.title || "").trim(),
-      subtitle: [p.inspiredBy ? `Inspired by ${String(p.inspiredBy).trim()}` : "", String(p.subtitle || "").trim()].filter(Boolean).join(" · "),
-      price: basePrice(p),
-      stock: num(p.stock),
-      image: productImage(p),
-    }))
+    .map((p) => {
+      // Musks come in several sizes: bundles include the smallest one (e.g. 3 gm).
+      const sizes = type === "musk" && Array.isArray(p.sizeOptions) ? p.sizeOptions.filter((s) => s && num(s.price) > 0) : [];
+      const small = sizes.length ? sizes.reduce((a, b) => (num(b.price) < num(a.price) ? b : a)) : null;
+      const size = small ? String(small.size || "").trim() : "";
+      return {
+        key: `products/${p.id}`,
+        id: p.id,
+        kind: "product",
+        title: String(p.title || "").trim(),
+        size,
+        subtitle: size || [p.inspiredBy ? `Inspired by ${String(p.inspiredBy).trim()}` : "", String(p.subtitle || "").trim()].filter(Boolean).join(" · "),
+        price: small ? Math.round(num(small.price)) : basePrice(p),
+        stock: num(p.stock),
+        image: productImage(p),
+      };
+    })
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 

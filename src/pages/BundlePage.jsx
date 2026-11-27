@@ -192,7 +192,7 @@ export default function BundlePage() {
       components: picks.map((p, i) => ({
         kind: p.kind, // "product" | "sample"
         id: p.id,
-        title: p.title,
+        title: p.size ? `${p.title} (${p.size})` : p.title, // orders show e.g. "Musk Powder (0.25 tola - 3 gm)"
         price: p.price,
         free: !!slots[i].free,
         slot: slots[i].label,
